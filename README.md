@@ -10,42 +10,45 @@ A Streamlit demo records audio, displays waveform & spectrograms, runs both mode
 
 ---
 
-# 📂 Project Structure
+## Project Structure
+
+```text
 SurroundSound/
 │
 ├── notebooks/
-│ ├── 01_environment_setup.py # Build AudioSet-based environment manifests
-│ ├── 01_events_setup.py # Build FSD50K-based events manifests
-│ ├── 02_environment_training.py # Train environment CNN
-│ ├── 02_events_training.py # Train events CNN
+│   ├── 01_environment_setup.py      # Build AudioSet-based environment manifests
+│   ├── 01_events_setup.py           # Build FSD50K-based events manifests
+│   ├── 02_environment_training.py   # Train environment CNN
+│   ├── 02_events_training.py        # Train events CNN
 │
 ├── scripts/
-│ ├── environment_download.py # AudioSet clip downloader (yt-dlp + ffmpeg)
-│ ├── environment_filter.py # Filter AudioSet CSVs into environment manifests
-│ ├── environment_label.py # Map AudioSet labels → 8 environment classes
-│ ├── environment_preprocess.py # Preprocess environment WAVs → log-mel features
-│ ├── events_download.py # Download & extract FSD50K audio/metadata
-│ ├── events_filter.py # Build events metadata.jsonl from FSD50K GT
-│ ├── events_manifest.py # Build FSD50K event manifest (paths + labels)
-│ └── events_preprocess.py # Preprocess event WAVs → log-mel features
+│   ├── environment_download.py      # AudioSet clip downloader (yt-dlp + ffmpeg)
+│   ├── environment_filter.py        # Filter AudioSet CSVs into environment manifests
+│   ├── environment_label.py         # Map AudioSet labels → 8 environment classes
+│   ├── environment_preprocess.py    # Preprocess environment WAVs → log-mel features
+│   ├── events_download.py           # Download & extract FSD50K audio/metadata
+│   ├── events_filter.py             # Build events metadata.jsonl from FSD50K GT
+│   ├── events_manifest.py           # Build FSD50K event manifest (paths + labels)
+│   └── events_preprocess.py         # Preprocess event WAVs → log-mel features
 │
 ├── src/
-│ ├── eval.py # Full evaluation pipeline (env + events)
-│ │
-│ ├── live_demo/
-│ │ ├── audio_utils.py # Microphone recording (sounddevice)
-│ │ ├── feature_extraction.py # Shared online feature extractor
-│ │ ├── models_live.py # Load trained CNN weights + inference
-│ │ └── streamlit_app.py # Real-time demo UI
-│ │
-│ └── results/ # Confusion matrices, F1/AP plots, CSV summaries
+│   ├── eval.py                      # Full evaluation pipeline (env + events)
+│   │
+│   ├── live_demo/
+│   │   ├── audio_utils.py           # Microphone recording (sounddevice)
+│   │   ├── feature_extraction.py    # Shared online feature extractor
+│   │   ├── models_live.py           # Load trained CNN weights + inference
+│   │   └── streamlit_app.py         # Real-time demo UI
+│   │
+│   └── results/                     # Confusion matrices, F1/AP plots, CSV summaries
 │
 ├── output/
-│ ├── environment/ # best_model.pt + training logs
-│ └── events/ # best_model.pt + training logs
+│   ├── environment/                 # best_model.pt + training logs
+│   └── events/                      # best_model.pt + training logs
 │
 ├── requirements.txt
 └── .gitignore
+```
 
 ---
 
@@ -128,7 +131,7 @@ Environment prediction
 Top-K event predictions
 
 Optional GPT mini LLM scene summary
-
+```
 Acknowledgments
 
 DCASE Challenge Community – inspiration for environment/event classification
