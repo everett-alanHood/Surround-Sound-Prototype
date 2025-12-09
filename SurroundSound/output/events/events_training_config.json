@@ -1,0 +1,10 @@
+{
+  "num_epochs": 40,
+  "batch_size": 64,
+  "learning_rate": 0.0002,
+  "val_fraction": 0.15,
+  "fast_mode": false,
+  "fast_n": 15000,
+  "use_amp": true,
+  "num_workers": 4
+}

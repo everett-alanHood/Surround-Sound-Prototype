@@ -1,0 +1,15 @@
+numpy
+pandas
+scipy
+matplotlib
+tqdm
+librosa
+soundfile
+sounddevice
+torch
+torchaudio
+scikit-learn
+streamlit
+requests
+openai
+plotly

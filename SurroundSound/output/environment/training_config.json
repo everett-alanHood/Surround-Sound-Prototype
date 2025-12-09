@@ -1,0 +1,16 @@
+{
+  "num_epochs": 25,
+  "batch_size": 32,
+  "learning_rate": 0.0003,
+  "val_fraction": 0.15,
+  "seed": 42,
+  "use_cuda": true,
+  "augment_train": true,
+  "num_workers": 0,
+  "db_min": -80.0,
+  "db_max": 0.0,
+  "num_classes": 8,
+  "model_class": "EnvCNN",
+  "use_class_weights": true,
+  "use_oversampler": false
+}

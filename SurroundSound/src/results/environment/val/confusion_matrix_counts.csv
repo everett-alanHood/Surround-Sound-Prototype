@@ -1,0 +1,9 @@
+,animal,crowd,indoor,other_ambient,outdoor_nature,vehicle_ground,vehicle_water,water
+animal,2795,258,709,233,253,20,351,83
+crowd,0,1942,0,0,0,0,7,0
+indoor,40,227,2411,49,69,39,40,48
+other_ambient,13,1,33,1437,2,0,12,9
+outdoor_nature,66,43,146,62,1617,43,370,85
+vehicle_ground,336,1765,1190,348,1832,2500,4392,377
+vehicle_water,85,152,29,45,279,23,2849,89
+water,467,328,889,302,892,60,1990,2526

@@ -1,0 +1,73 @@
+BEST_THRESHOLD = 0.800
+MICRO_F1 = 0.5161
+MACRO_F1 = 0.3914
+
+                        precision    recall  f1-score   support
+
+              Aircraft       0.09      0.77      0.15        35
+            Alarm Beep       0.40      0.42      0.41       285
+                 Alert       0.40      0.42      0.41       285
+                Animal       0.61      0.46      0.53       570
+             Appliance       0.22      0.62      0.33        32
+            Bell Chime       0.32      0.68      0.43       178
+               Bicycle       0.14      0.31      0.19        52
+                  Bird       0.44      0.55      0.49       256
+        Bird Call Song       0.44      0.56      0.49       256
+            Bird Chirp       0.13      0.47      0.20        77
+       Cabinet Drawers       0.19      0.77      0.30        30
+            Car Engine       0.47      0.47      0.47       398
+           Car Pass By       0.09      0.77      0.17        31
+                   Cat       0.16      0.55      0.24        65
+          Cough Sneeze       0.19      0.59      0.29        74
+                   Dog       0.30      0.59      0.40       123
+              Domestic       0.48      0.26      0.33       842
+       Door Open Close       0.28      0.43      0.34       228
+       Emergency Siren       0.08      0.35      0.13        20
+          Farm Animals       0.25      0.88      0.38        34
+          Fire Crackle       0.21      0.50      0.30       112
+         Flowing Water       0.24      0.82      0.37        45
+             Footsteps       0.21      0.96      0.34        50
+           Glass Clink       0.30      0.38      0.33       246
+    Guitar Instruments       0.52      0.79      0.63       359
+                 Human       0.60      0.54      0.57      1060
+       Human Breathing       0.25      0.51      0.34       169
+       Human Cry Laugh       0.30      0.70      0.42       158
+           Human Group       0.28      0.64      0.39       204
+                Impact       0.30      0.39      0.34       246
+           Insect Buzz       0.25      0.59      0.35        82
+  Keyboard Instruments       0.25      0.53      0.34       289
+     Kitchen Appliance       0.22      0.62      0.33        32
+            Mechanical       0.10      0.64      0.18        28
+            Motorcycle       0.16      0.92      0.27        38
+                 Music       0.92      0.80      0.86      2512
+    Musical Instrument       0.84      0.75      0.79      1937
+                Nature       0.60      0.55      0.57       718
+           Ocean Waves       0.13      0.73      0.21        48
+           Other Event       0.64      0.14      0.23      1919
+            Percussion       0.62      0.77      0.69       588
+Percussion Instruments       0.62      0.77      0.69       588
+                  Rain       0.20      0.68      0.31        96
+           Rhythm Beat       0.62      0.77      0.69       588
+              Scissors       0.09      0.52      0.15        21
+              Shouting       0.18      0.78      0.29       100
+               Singing       0.27      0.72      0.39       120
+                Speech       0.26      0.35      0.30       350
+    String Instruments       0.64      0.73      0.68       702
+      Tearing Scraping       0.12      0.60      0.20        47
+               Thunder       0.35      0.93      0.50        95
+          Toilet Flush       0.28      0.92      0.43        37
+                 Tools       0.10      0.61      0.17        28
+                 Train       0.25      0.76      0.37       132
+             Truck Bus       0.13      0.70      0.23        61
+        Typing Writing       0.38      0.59      0.46        76
+               Vehicle       0.64      0.50      0.56       616
+         Water Running       0.32      0.70      0.44       107
+               Weather       0.33      0.67      0.44       209
+          Wild Animals       0.56      0.56      0.56       353
+                  Wind       0.08      0.53      0.14        59
+      Wind Instruments       0.63      0.80      0.70       412
+
+             micro avg       0.46      0.58      0.52     19508
+             macro avg       0.33      0.62      0.39     19508
+          weighted avg       0.58      0.58      0.54     19508
+           samples avg       0.39      0.50      0.41     19508
