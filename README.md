@@ -81,7 +81,7 @@ Download & preprocess them using the provided scripts.
 
 1. Environment Dataset (AudioSet)
 Step 1: Filter AudioSet CSVs
-python scripts/environment_filter.py --csv_dir data/csv --ontology ontology.json --out data/manifests/environment_segments.csv
+python SurroundSound/scripts/environment_filter.py --csv_dir data/csv --ontology ontology.json --out data/manifests/environment_segments.csv
 
 Step 2: Download Audio Segments
 python scripts/environment_download.py --manifest data/manifests/environment_segments.csv
