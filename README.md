@@ -1,31 +1,28 @@
 # Surround Sound
 Real-Time Environment & Sound Event Classification
 
-Surround Sound is a machine learning system that performs **real-time audio scene understanding** using a single microphone. It uses two convolutional neural networks:
-
-- **Environment Classifier (8 classes, softmax)**  
-- **Events Classifier (62 labels, multi-label sigmoid)**  
+Surround Sound is a machine learning system that performs **real-time audio scene understanding** using a single microphone. It uses two neural networks:
+- **Environment Classifier (8 classes, softmax)**
+- **Events Classifier (62 labels, multi-label sigmoid)**
 
 A Streamlit demo records audio, displays waveform & spectrograms, runs both models, and optionally summarizes the detected scene using a lightweight LLM.
 
 ---
 
 ## Project Structure
-
 ```text
 SurroundSound/
 │
 ├── notebooks/
 │   ├── 01_environment_setup.py      # Build AudioSet-based environment manifests
 │   ├── 01_events_setup.py           # Build FSD50K-based events manifests
-│   ├── 02_environment_training.py   # Train environment CNN
+│   ├── 02_environment_training.py   # Train environment model
 │   ├── 02_events_training.py        # Train events CNN
 │
 ├── scripts/
-│   ├── environment_download.py      # AudioSet clip downloader (yt-dlp + ffmpeg)
 │   ├── environment_filter.py        # Filter AudioSet CSVs into environment manifests
 │   ├── environment_label.py         # Map AudioSet labels → 8 environment classes
-│   ├── environment_preprocess.py    # Preprocess environment WAVs → log-mel features
+│   ├── environment_preprocess.py    # Parse AudioSet TFRecords → (10, 128) embeddings
 │   ├── events_download.py           # Download & extract FSD50K audio/metadata
 │   ├── events_filter.py             # Build events metadata.jsonl from FSD50K GT
 │   ├── events_manifest.py           # Build FSD50K event manifest (paths + labels)
@@ -37,7 +34,7 @@ SurroundSound/
 │   ├── live_demo/
 │   │   ├── audio_utils.py           # Microphone recording (sounddevice)
 │   │   ├── feature_extraction.py    # Shared online feature extractor
-│   │   ├── models_live.py           # Load trained CNN weights + inference
+│   │   ├── models_live.py           # Load trained model weights + inference
 │   │   └── streamlit_app.py         # Real-time demo UI
 │   │
 │   └── results/                     # Confusion matrices, F1/AP plots, CSV summaries
@@ -52,98 +49,137 @@ SurroundSound/
 
 ---
 
-# Model Overview
+## Model Overview
 
-### **Environment CNN**
-- 4-layer Conv2D (Conv → BN → ReLU → MaxPool)
+### Environment Classifier
+- Small MLP or 1D CNN over **10 × 128** VGGish embeddings (1 embedding per second)
 - Softmax over **8 classes**
-- Input: log-mel spectrogram (128 mels × T)
+- Input: pre-extracted AudioSet VGGish features (no raw audio required for training)
 - Trained for ~20–25 epochs with class-balanced sampling
 
-### **Events CNN**
-- 4-layer deeper Conv2D (64→128→256→256)
+### Events CNN
+- 4-layer Conv2D (64→128→256→256)
 - Sigmoid over **62 event labels**
 - Multi-label BCEWithLogits + positive reweighting
+- Input: log-mel spectrogram (128 mels × T)
 - Trained for ~40 epochs, with threshold tuning
 
 ---
 
-# Installation
+## Installation
 
 ```bash
 conda create -n surround-env python=3.10
 conda activate surround-env
 pip install -r requirements.txt
+conda install -c conda-forge ffmpeg  # required for events pipeline only
+```
 
+Datasets are not included due to size. Download and preprocess them using the provided scripts.
 
-Datasets are not included due to size.
-Download & preprocess them using the provided scripts.
+---
 
-1. Environment Dataset (AudioSet)
-Step 1: Filter AudioSet CSVs
-python SurroundSound/scripts/environment_filter.py --csv_dir data/csv --ontology ontology.json --out data/manifests/environment_segments.csv
+## 1. Environment Dataset (AudioSet)
 
-Step 2: Download Audio Segments
-python scripts/environment_download.py --manifest data/manifests/environment_segments.csv
+AudioSet provides pre-extracted VGGish embeddings (128-dim at 1Hz), avoiding the need to download raw YouTube audio. Each 10-second clip is represented as a **10 × 128** matrix.
 
-Step 3: Preprocess Audio → Log-Mel
-python scripts/environment_preprocess.py
+**Step 1: Download AudioSet features (~2.4 GB)**
+```bash
+# Pick a regional mirror: us, eu, or asia
+curl -O https://storage.googleapis.com/us_audioset/youtube_corpus/v1/features/features.tar.gz
+tar -xzf features.tar.gz -C SurroundSound/data/environment/tfrecords
+```
 
-2. Events Dataset (FSD50K)
-Step 1: Download FSD50K
-python scripts/events_download.py --root data/events/FSD50K
+**Step 2: Download AudioSet CSVs**
 
-Step 2: Build Manifest
-python scripts/events_manifest.py
+Download `balanced_train_segments.csv` and `eval_segments.csv` from the
+[AudioSet downloads page](https://research.google.com/audioset/download.html) and place them in `SurroundSound/data/csv/`.
 
-Step 3: Preprocess → Log-Mel
-python scripts/events_preprocess.py
+**Step 3: Filter CSVs into a manifest**
+```bash
+python SurroundSound/scripts/environment_filter.py \
+  --csv_dir SurroundSound/data/csv \
+  --ontology SurroundSound/ontology.json \
+  --out SurroundSound/data/manifests/environment_segments.csv
+```
 
-Training
-Environment model:
-python notebooks/02_environment_training.py
+**Step 4: Parse TFRecords → embeddings**
+```bash
+python SurroundSound/scripts/environment_preprocess.py
+```
 
-Events model:
-python notebooks/02_events_training.py
+---
 
-Evaluation
-python src/eval.py --task env
-python src/eval.py --task events
+## 2. Events Dataset (FSD50K)
 
+The events pipeline uses raw audio and produces log-mel spectrograms.
+
+**Step 1: Download FSD50K**
+```bash
+python SurroundSound/scripts/events_download.py --root SurroundSound/data/events/FSD50K
+```
+
+**Step 2: Build manifest**
+```bash
+python SurroundSound/scripts/events_manifest.py
+```
+
+**Step 3: Preprocess → log-mel**
+```bash
+python SurroundSound/scripts/events_preprocess.py
+```
+
+---
+
+## Training
+
+```bash
+# Environment model
+python SurroundSound/notebooks/02_environment_training.py
+
+# Events model
+python SurroundSound/notebooks/02_events_training.py
+```
+
+---
+
+## Evaluation
+
+```bash
+python SurroundSound/src/eval.py --task env
+python SurroundSound/src/eval.py --task events
+```
 
 Outputs go to:
+```
+SurroundSound/src/results/environment/
+SurroundSound/src/results/events/
+```
 
-src/results/environment/
-src/results/events/
+---
 
-Live Demo
-streamlit run src/live_demo/streamlit_app.py
+## Live Demo
 
+```bash
+streamlit run SurroundSound/src/live_demo/streamlit_app.py
+```
 
 Demo includes:
+- Microphone recording
+- Waveform + log-mel spectrogram
+- Environment prediction
+- Top-K event predictions
+- Optional LLM scene summary
 
-Microphone recording
+---
 
-Waveform + log-mel spectrogram
+## Acknowledgments
 
-Environment prediction
-
-Top-K event predictions
-
-Optional GPT mini LLM scene summary
-```
-Acknowledgments
-
-DCASE Challenge Community – inspiration for environment/event classification
-
-Google AudioSet – source for environment labels
-
-FSD50K – sound event dataset
-
-Librosa – audio feature extraction
-
-PyTorch – deep learning framework
-
-Streamlit – live demo UI
-
-OpenAI – optional scene summarization
+- [DCASE Challenge Community](https://dcase.community/) — inspiration for environment/event classification
+- [Google AudioSet](https://research.google.com/audioset/) — environment features and labels
+- [FSD50K](https://zenodo.org/record/4060432) — sound event dataset
+- [VGGish](https://github.com/tensorflow/models/tree/master/research/audioset/vggish) — pre-extracted audio embeddings
+- [Librosa](https://librosa.org/) — audio feature extraction
+- [PyTorch](https://pytorch.org/) — deep learning framework
+- [Streamlit](https://streamlit.io/) — live demo UI
+- [OpenAI](https://openai.com/) — optional scene summarization
