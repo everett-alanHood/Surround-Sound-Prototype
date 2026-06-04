@@ -4,25 +4,56 @@ Download and unpack the FSD50K dataset for the Events head.
 
 - Downloads multi-part dev/eval audio zips + metadata zips from Zenodo.
 - Verifies MD5 checksums.
+- Supports parallel downloads with --workers.
+- Supports resumable downloads (Range requests).
 - Merges split zips (z01, z02, ..., .zip) into a single unsplit .zip.
-- Extracts archives using Python's zipfile (no external zip/unzip needed).
+- Extracts split zips using 7-Zip (handles multi-disk zip format).
+- Falls back to Python's zipfile for simple single-part zips.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import shutil
+import subprocess
 import sys
+import threading
+import zipfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
-import zipfile
 
 import requests
 from tqdm import tqdm
 
 
-# Config for remote files
+# ── 7-Zip detection ───────────────────────────────────────────────────────────
+
+def find_7zip() -> Optional[str]:
+    """Locate 7-Zip executable on Windows or Unix."""
+    candidates = [
+        r"C:\Program Files\7-Zip\7z.exe",
+        r"C:\Program Files (x86)\7-Zip\7z.exe",
+        "7z",   # Unix / on PATH
+        "7za",
+    ]
+    for c in candidates:
+        try:
+            result = subprocess.run(
+                [c, "i"], capture_output=True, timeout=5
+            )
+            if result.returncode == 0:
+                return c
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+    return None
+
+SEVENZ = find_7zip()
+
+
+# ── Remote file registry ──────────────────────────────────────────────────────
 
 @dataclass
 class RemoteFile:
@@ -33,72 +64,30 @@ class RemoteFile:
 
 REMOTES: Dict[str, List[RemoteFile]] = {
     "FSD50K.dev_audio": [
-        RemoteFile(
-            filename="FSD50K.dev_audio.zip",
-            url="https://zenodo.org/record/4060432/files/FSD50K.dev_audio.zip?download=1",
-            md5="c480d119b8f7a7e32fdb58f3ea4d6c5a",
-        ),
-        RemoteFile(
-            filename="FSD50K.dev_audio.z01",
-            url="https://zenodo.org/record/4060432/files/FSD50K.dev_audio.z01?download=1",
-            md5="faa7cf4cc076fc34a44a479a5ed862a3",
-        ),
-        RemoteFile(
-            filename="FSD50K.dev_audio.z02",
-            url="https://zenodo.org/record/4060432/files/FSD50K.dev_audio.z02?download=1",
-            md5="8f9b66153e68571164fb1315d00bc7bc",
-        ),
-        RemoteFile(
-            filename="FSD50K.dev_audio.z03",
-            url="https://zenodo.org/record/4060432/files/FSD50K.dev_audio.z03?download=1",
-            md5="1196ef47d267a993d30fa98af54b7159",
-        ),
-        RemoteFile(
-            filename="FSD50K.dev_audio.z04",
-            url="https://zenodo.org/record/4060432/files/FSD50K.dev_audio.z04?download=1",
-            md5="d088ac4e11ba53daf9f7574c11cccac9",
-        ),
-        RemoteFile(
-            filename="FSD50K.dev_audio.z05",
-            url="https://zenodo.org/record/4060432/files/FSD50K.dev_audio.z05?download=1",
-            md5="81356521aa159accd3c35de22da28c7f",
-        ),
+        RemoteFile("FSD50K.dev_audio.zip",  "https://zenodo.org/record/4060432/files/FSD50K.dev_audio.zip?download=1",  "c480d119b8f7a7e32fdb58f3ea4d6c5a"),
+        RemoteFile("FSD50K.dev_audio.z01",  "https://zenodo.org/record/4060432/files/FSD50K.dev_audio.z01?download=1",  "faa7cf4cc076fc34a44a479a5ed862a3"),
+        RemoteFile("FSD50K.dev_audio.z02",  "https://zenodo.org/record/4060432/files/FSD50K.dev_audio.z02?download=1",  "8f9b66153e68571164fb1315d00bc7bc"),
+        RemoteFile("FSD50K.dev_audio.z03",  "https://zenodo.org/record/4060432/files/FSD50K.dev_audio.z03?download=1",  "1196ef47d267a993d30fa98af54b7159"),
+        RemoteFile("FSD50K.dev_audio.z04",  "https://zenodo.org/record/4060432/files/FSD50K.dev_audio.z04?download=1",  "d088ac4e11ba53daf9f7574c11cccac9"),
+        RemoteFile("FSD50K.dev_audio.z05",  "https://zenodo.org/record/4060432/files/FSD50K.dev_audio.z05?download=1",  "81356521aa159accd3c35de22da28c7f"),
     ],
     "FSD50K.eval_audio": [
-        RemoteFile(
-            filename="FSD50K.eval_audio.zip",
-            url="https://zenodo.org/record/4060432/files/FSD50K.eval_audio.zip?download=1",
-            md5="6fa47636c3a3ad5c7dfeba99f2637982",
-        ),
-        RemoteFile(
-            filename="FSD50K.eval_audio.z01",
-            url="https://zenodo.org/record/4060432/files/FSD50K.eval_audio.z01?download=1",
-            md5="3090670eaeecc013ca1ff84fe4442aeb",
-        ),
+        RemoteFile("FSD50K.eval_audio.zip", "https://zenodo.org/record/4060432/files/FSD50K.eval_audio.zip?download=1", "6fa47636c3a3ad5c7dfeba99f2637982"),
+        RemoteFile("FSD50K.eval_audio.z01", "https://zenodo.org/record/4060432/files/FSD50K.eval_audio.z01?download=1", "3090670eaeecc013ca1ff84fe4442aeb"),
     ],
     "ground_truth": [
-        RemoteFile(
-            filename="FSD50K.ground_truth.zip",
-            url="https://zenodo.org/record/4060432/files/FSD50K.ground_truth.zip?download=1",
-            md5="ca27382c195e37d2269c4c866dd73485",
-        )
+        RemoteFile("FSD50K.ground_truth.zip", "https://zenodo.org/record/4060432/files/FSD50K.ground_truth.zip?download=1", "ca27382c195e37d2269c4c866dd73485"),
     ],
     "metadata": [
-        RemoteFile(
-            filename="FSD50K.metadata.zip",
-            url="https://zenodo.org/record/4060432/files/FSD50K.metadata.zip?download=1",
-            md5="b9ea0c829a411c1d42adb9da539ed237",
-        )
+        RemoteFile("FSD50K.metadata.zip", "https://zenodo.org/record/4060432/files/FSD50K.metadata.zip?download=1", "b9ea0c829a411c1d42adb9da539ed237"),
     ],
     "documentation": [
-        RemoteFile(
-            filename="FSD50K.doc.zip",
-            url="https://zenodo.org/record/4060432/files/FSD50K.doc.zip?download=1",
-            md5="3516162b82dc2945d3e7feba0904e800",
-        )
+        RemoteFile("FSD50K.doc.zip", "https://zenodo.org/record/4060432/files/FSD50K.doc.zip?download=1", "3516162b82dc2945d3e7feba0904e800"),
     ],
 }
 
+
+# ── Config ────────────────────────────────────────────────────────────────────
 
 @dataclass
 class Config:
@@ -106,46 +95,36 @@ class Config:
     skip_audio: bool
     skip_meta: bool
     skip_extract: bool
+    workers: int
 
 
 def parse_args() -> Config:
     ap = argparse.ArgumentParser(
         description="Download and unpack the FSD50K dataset for Events."
     )
-    ap.add_argument(
-        "--root",
-        type=Path,
-        default=Path("data/events/FSD50K"),
-        help="Root directory where FSD50K will live (default: data/events/FSD50K)",
-    )
-    ap.add_argument(
-        "--skip-audio",
-        action="store_true",
-        help="Skip downloading dev/eval audio archives.",
-    )
-    ap.add_argument(
-        "--skip-meta",
-        action="store_true",
-        help="Skip downloading ground_truth/metadata/doc archives.",
-    )
-    ap.add_argument(
-        "--skip-extract",
-        action="store_true",
-        help="Skip extraction/unsplitting; only download files.",
-    )
+    ap.add_argument("--root", type=Path, default=Path("data/events/FSD50K"),
+                    help="Root directory where FSD50K will live (default: data/events/FSD50K)")
+    ap.add_argument("--skip-audio", action="store_true",
+                    help="Skip downloading dev/eval audio archives.")
+    ap.add_argument("--skip-meta", action="store_true",
+                    help="Skip downloading ground_truth/metadata/doc archives.")
+    ap.add_argument("--skip-extract", action="store_true",
+                    help="Skip extraction/unsplitting; only download files.")
+    ap.add_argument("--workers", type=int, default=4,
+                    help="Number of parallel download threads (default: 4).")
     args = ap.parse_args()
-
     return Config(
         root=args.root,
         skip_audio=args.skip_audio,
         skip_meta=args.skip_meta,
         skip_extract=args.skip_extract,
+        workers=args.workers,
     )
 
 
-# Helpers/download functions
+# ── MD5 ───────────────────────────────────────────────────────────────────────
 
-def md5(path: Path, chunk_size: int = 1 << 20) -> str:
+def compute_md5(path: Path, chunk_size: int = 1 << 20) -> str:
     h = hashlib.md5()
     with path.open("rb") as f:
         for chunk in iter(lambda: f.read(chunk_size), b""):
@@ -153,152 +132,241 @@ def md5(path: Path, chunk_size: int = 1 << 20) -> str:
     return h.hexdigest()
 
 
-def download_file(url: str, dest: Path, expected_md5: Optional[str] = None) -> None:
+def verify_md5(path: Path, expected: str) -> bool:
+    actual = compute_md5(path)
+    if actual != expected:
+        raise RuntimeError(
+            f"MD5 mismatch for {path.name} "
+            f"(expected {expected}, got {actual})"
+        )
+    return True
+
+
+# ── Resumable download ────────────────────────────────────────────────────────
+
+# Lock so tqdm bars from parallel threads don't interleave
+_print_lock = threading.Lock()
+
+
+def download_file(
+    url: str,
+    dest: Path,
+    expected_md5: Optional[str] = None,
+    overall_pbar: Optional[tqdm] = None,
+) -> None:
+    """
+    Download url to dest with resume support.
+    If dest exists and MD5 matches, skip entirely.
+    If dest exists but is incomplete (partial), resume from current size.
+    """
     dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dest.with_suffix(dest.suffix + ".part")
 
+    # Already complete?
     if dest.exists():
-        print(f"[SKIP] {dest.name} already exists")
         if expected_md5:
-            actual = md5(dest)
-            if actual != expected_md5:
-                raise RuntimeError(
-                    f"MD5 mismatch for existing file {dest} "
-                    f"(expected {expected_md5}, got {actual})"
-                )
-        return
+            try:
+                verify_md5(dest, expected_md5)
+                with _print_lock:
+                    print(f"[SKIP] {dest.name} (verified)")
+                if overall_pbar:
+                    overall_pbar.update(1)
+                return
+            except RuntimeError:
+                with _print_lock:
+                    print(f"[WARN] {dest.name} MD5 mismatch, re-downloading")
+                dest.unlink()
+        else:
+            with _print_lock:
+                print(f"[SKIP] {dest.name} already exists")
+            if overall_pbar:
+                overall_pbar.update(1)
+            return
 
-    print(f"[DOWNLOAD] {dest.name}")
-    with requests.get(url, stream=True) as r:
-        r.raise_for_status()
+    # Resume from partial?
+    resume_pos = tmp.stat().st_size if tmp.exists() else 0
+    headers = {"Range": f"bytes={resume_pos}-"} if resume_pos > 0 else {}
+
+    with _print_lock:
+        action = f"[RESUME@{resume_pos//1024//1024}MB]" if resume_pos else "[DOWNLOAD]"
+        print(f"{action} {dest.name}")
+
+    with requests.get(url, stream=True, headers=headers, timeout=60) as r:
+        # 416 = range not satisfiable (server doesn't support resume or file is complete)
+        if r.status_code == 416:
+            resume_pos = 0
+            r = requests.get(url, stream=True, timeout=60)
+            r.raise_for_status()
+        else:
+            r.raise_for_status()
+
         total = int(r.headers.get("Content-Length", 0)) or None
+        if total and resume_pos:
+            total += resume_pos  # full file size for display
+
+        mode = "ab" if resume_pos else "wb"
         with tqdm(
             total=total,
+            initial=resume_pos,
             unit="B",
             unit_scale=True,
             unit_divisor=1024,
-            desc=dest.name,
+            desc=dest.name[:30],
+            leave=False,
         ) as pbar:
-            with dest.open("wb") as f:
+            with tmp.open(mode) as f:
                 for chunk in r.iter_content(chunk_size=1 << 20):
                     if not chunk:
                         continue
                     f.write(chunk)
                     pbar.update(len(chunk))
 
+    # Rename tmp -> dest
+    tmp.replace(dest)
+
+    # Verify
     if expected_md5:
-        actual = md5(dest)
-        if actual != expected_md5:
-            raise RuntimeError(
-                f"MD5 mismatch for {dest} after download "
-                f"(expected {expected_md5}, got {actual})"
-            )
+        verify_md5(dest, expected_md5)
+
+    if overall_pbar:
+        overall_pbar.update(1)
 
 
-def download_group(name: str, files: List[RemoteFile], root: Path) -> None:
-    print(f"\n=== Download group: {name} ===")
-    for rf in files:
-        dest = root / rf.filename
-        download_file(rf.url, dest, rf.md5)
+# ── Parallel download group ───────────────────────────────────────────────────
+
+def download_group(
+    name: str,
+    files: List[RemoteFile],
+    root: Path,
+    workers: int,
+) -> None:
+    print(f"\n=== Download group: {name} ({len(files)} files, {workers} workers) ===")
+
+    with tqdm(total=len(files), unit="file", desc=name, position=0) as overall_pbar:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = {
+                pool.submit(
+                    download_file,
+                    rf.url,
+                    root / rf.filename,
+                    rf.md5,
+                    overall_pbar,
+                ): rf
+                for rf in files
+            }
+            for future in as_completed(futures):
+                rf = futures[future]
+                try:
+                    future.result()
+                except Exception as e:
+                    with _print_lock:
+                        print(f"[ERROR] {rf.filename}: {e}")
 
 
-def merge_split_zip(parts: List[Path], output_zip: Path) -> None:
+# ── Merge + extract ───────────────────────────────────────────────────────────
+
+def extract_split_zip_7z(first_part: Path, dest: Path) -> None:
     """
-    Concatenate split zip parts (z01, z02, ..., .zip) into a single unsplit zip.
+    Extract a split zip using 7-Zip. Point at the first part (z01 or zip).
+    7-Zip handles multi-disk reassembly automatically.
     """
-    if output_zip.exists():
-        print(f"[SKIP] {output_zip.name} already exists (merged)")
-        return
+    if SEVENZ is None:
+        raise RuntimeError(
+            "7-Zip not found. Install it with: winget install 7zip.7zip\n"
+            "Then restart your terminal and re-run."
+        )
+    dest.mkdir(parents=True, exist_ok=True)
+    print(f"[EXTRACT] {first_part.name} (split zip) -> {dest}  [via 7-Zip]")
+    cmd = [SEVENZ, "x", str(first_part), f"-o{dest}", "-y"]
+    result = subprocess.run(cmd, text=True)
+    if result.returncode not in (0, 1):  # 7z returns 1 for warnings
+        raise RuntimeError(f"7-Zip failed with return code {result.returncode}")
 
-    print(f"[MERGE] Creating {output_zip.name} from {len(parts)} parts")
-    with output_zip.open("wb") as out_f:
-        for p in parts:
-            print(f"  + {p.name}")
-            with p.open("rb") as in_f:
-                for chunk in iter(lambda: in_f.read(1 << 20), b""):
-                    out_f.write(chunk)
 
-
-def extract_zip(zip_path: Path, dest: Path) -> None:
-    """
-    Extract a zip archive using Python's zipfile.
-    """
+def extract_zip_python(zip_path: Path, dest: Path) -> None:
+    """Extract a simple single-part zip using Python's zipfile."""
     if not zip_path.exists():
         print(f"[WARN] Missing archive, cannot extract: {zip_path}")
         return
     print(f"[EXTRACT] {zip_path.name} -> {dest}")
     dest.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path, "r") as zf:
-        zf.extractall(dest)
+        members = zf.infolist()
+        with tqdm(total=len(members), unit="file", desc=zip_path.name[:30]) as pbar:
+            for member in members:
+                zf.extract(member, dest)
+                pbar.update(1)
 
-
-# Extract all archives
 
 def extract_all(cfg: Config) -> None:
     root = cfg.root
     print(f"\n=== Extracting archives under {root} ===")
 
-    # 1) Dev audio (split zip)
-    if not cfg.skip_audio:
-        dev_files = REMOTES["FSD50K.dev_audio"]
-        dev_paths = [root / rf.filename for rf in dev_files]
-        if all(p.exists() for p in dev_paths):
-            # Sort parts so z01..z05 come before .zip
-            dev_parts_sorted = sorted(dev_paths, key=lambda p: p.suffix)
-            dev_unsplit = root / "FSD50K.dev_audio.unsplit.zip"
-            merge_split_zip(dev_parts_sorted, dev_unsplit)
-            extract_zip(dev_unsplit, root)
-        else:
-            print("[WARN] Some dev audio parts missing; skipping dev audio extraction")
+    if SEVENZ:
+        print(f"[INFO] 7-Zip found: {SEVENZ}")
+    else:
+        print("[WARN] 7-Zip not found — split zip extraction will fail.")
+        print("       Install with: winget install 7zip.7zip")
 
-        # 2) Eval audio (split zip)
-        eval_files = REMOTES["FSD50K.eval_audio"]
-        eval_paths = [root / rf.filename for rf in eval_files]
-        if all(p.exists() for p in eval_paths):
-            eval_parts_sorted = sorted(eval_paths, key=lambda p: p.suffix)
-            eval_unsplit = root / "FSD50K.eval_audio.unsplit.zip"
-            merge_split_zip(eval_parts_sorted, eval_unsplit)
-            extract_zip(eval_unsplit, root)
+    if not cfg.skip_audio:
+        # Dev audio — point 7-Zip at the first part (.z01)
+        dev_parts = sorted(
+            [root / rf.filename for rf in REMOTES["FSD50K.dev_audio"]],
+            key=lambda p: p.suffix,
+        )
+        if all(p.exists() for p in dev_parts):
+            # First part for 7-Zip is the .z01
+            first = next((p for p in dev_parts if p.suffix == ".z01"), dev_parts[0])
+            extract_split_zip_7z(first, root)
         else:
-            print("[WARN] Some eval audio parts missing; skipping eval audio extraction")
+            missing = [p.name for p in dev_parts if not p.exists()]
+            print(f"[WARN] Missing dev audio parts: {missing}")
+
+        # Eval audio
+        eval_parts = sorted(
+            [root / rf.filename for rf in REMOTES["FSD50K.eval_audio"]],
+            key=lambda p: p.suffix,
+        )
+        if all(p.exists() for p in eval_parts):
+            first = next((p for p in eval_parts if p.suffix == ".z01"), eval_parts[0])
+            extract_split_zip_7z(first, root)
+        else:
+            missing = [p.name for p in eval_parts if not p.exists()]
+            print(f"[WARN] Missing eval audio parts: {missing}")
     else:
         print("[INFO] Skipping audio extraction (--skip-audio)")
 
-    # 3) Metadata (simple zips)
     if not cfg.skip_meta:
         for key in ("ground_truth", "metadata", "documentation"):
             for rf in REMOTES[key]:
-                zip_path = root / rf.filename
-                extract_zip(zip_path, root)
+                extract_zip_python(root / rf.filename, root)
     else:
         print("[INFO] Skipping metadata/doc extraction (--skip-meta)")
 
-    print("\n[INFO] Extraction finished. You should see directories like:")
-    print(f"  {root}/FSD50K.dev_audio")
-    print(f"  {root}/FSD50K.eval_audio")
-    print(f"  {root}/FSD50K.ground_truth")
-    print(f"  {root}/FSD50K.metadata")
-    print(f"  {root}/FSD50K.doc")
+    print("\n[INFO] Extraction finished. Expected directories:")
+    for d in ["FSD50K.dev_audio", "FSD50K.eval_audio", "FSD50K.ground_truth", "FSD50K.metadata", "FSD50K.doc"]:
+        status = "✓" if (root / d).exists() else "✗ MISSING"
+        print(f"  {status}  {root / d}")
 
 
-# Main function
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     cfg = parse_args()
-    root = cfg.root
-    root.mkdir(parents=True, exist_ok=True)
+    cfg.root.mkdir(parents=True, exist_ok=True)
+    print(f"[INFO] FSD50K root: {cfg.root}")
+    print(f"[INFO] Workers:     {cfg.workers}")
 
-    print(f"[INFO] FSD50K root: {root}")
-
-    # Downloads (skip files already downloaded)
     if not cfg.skip_audio:
-        download_group("FSD50K.dev_audio", REMOTES["FSD50K.dev_audio"], root)
-        download_group("FSD50K.eval_audio", REMOTES["FSD50K.eval_audio"], root)
+        download_group("FSD50K.dev_audio",  REMOTES["FSD50K.dev_audio"],  cfg.root, cfg.workers)
+        download_group("FSD50K.eval_audio", REMOTES["FSD50K.eval_audio"], cfg.root, cfg.workers)
     else:
         print("[INFO] Skipping audio downloads (--skip-audio)")
 
     if not cfg.skip_meta:
+        # Metadata files are small — download sequentially to avoid Zenodo rate limits
         for group in ("ground_truth", "metadata", "documentation"):
-            download_group(group, REMOTES[group], root)
+            download_group(group, REMOTES[group], cfg.root, workers=1)
     else:
         print("[INFO] Skipping metadata/doc downloads (--skip-meta)")
 

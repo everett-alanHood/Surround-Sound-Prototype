@@ -8,8 +8,13 @@ soundfile
 sounddevice
 torch
 torchaudio
+torchvision
 scikit-learn
 streamlit
 requests
 openai
 plotly
+yt-dlp
+tensorflow
+pyloudnorm
+faster-whisper

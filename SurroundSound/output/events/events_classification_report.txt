@@ -1,73 +1,219 @@
-BEST_THRESHOLD = 0.800
-MICRO_F1 = 0.5161
-MACRO_F1 = 0.3914
+BEST_THRESHOLD = 0.900
+MICRO_F1 = 0.6100
+MACRO_F1 = 0.4972
 
-                        precision    recall  f1-score   support
+                                          precision    recall  f1-score   support
 
-              Aircraft       0.09      0.77      0.15        35
-            Alarm Beep       0.40      0.42      0.41       285
-                 Alert       0.40      0.42      0.41       285
-                Animal       0.61      0.46      0.53       570
-             Appliance       0.22      0.62      0.33        32
-            Bell Chime       0.32      0.68      0.43       178
-               Bicycle       0.14      0.31      0.19        52
-                  Bird       0.44      0.55      0.49       256
-        Bird Call Song       0.44      0.56      0.49       256
-            Bird Chirp       0.13      0.47      0.20        77
-       Cabinet Drawers       0.19      0.77      0.30        30
-            Car Engine       0.47      0.47      0.47       398
-           Car Pass By       0.09      0.77      0.17        31
-                   Cat       0.16      0.55      0.24        65
-          Cough Sneeze       0.19      0.59      0.29        74
-                   Dog       0.30      0.59      0.40       123
-              Domestic       0.48      0.26      0.33       842
-       Door Open Close       0.28      0.43      0.34       228
-       Emergency Siren       0.08      0.35      0.13        20
-          Farm Animals       0.25      0.88      0.38        34
-          Fire Crackle       0.21      0.50      0.30       112
-         Flowing Water       0.24      0.82      0.37        45
-             Footsteps       0.21      0.96      0.34        50
-           Glass Clink       0.30      0.38      0.33       246
-    Guitar Instruments       0.52      0.79      0.63       359
-                 Human       0.60      0.54      0.57      1060
-       Human Breathing       0.25      0.51      0.34       169
-       Human Cry Laugh       0.30      0.70      0.42       158
-           Human Group       0.28      0.64      0.39       204
-                Impact       0.30      0.39      0.34       246
-           Insect Buzz       0.25      0.59      0.35        82
-  Keyboard Instruments       0.25      0.53      0.34       289
-     Kitchen Appliance       0.22      0.62      0.33        32
-            Mechanical       0.10      0.64      0.18        28
-            Motorcycle       0.16      0.92      0.27        38
-                 Music       0.92      0.80      0.86      2512
-    Musical Instrument       0.84      0.75      0.79      1937
-                Nature       0.60      0.55      0.57       718
-           Ocean Waves       0.13      0.73      0.21        48
-           Other Event       0.64      0.14      0.23      1919
-            Percussion       0.62      0.77      0.69       588
-Percussion Instruments       0.62      0.77      0.69       588
-                  Rain       0.20      0.68      0.31        96
-           Rhythm Beat       0.62      0.77      0.69       588
-              Scissors       0.09      0.52      0.15        21
-              Shouting       0.18      0.78      0.29       100
-               Singing       0.27      0.72      0.39       120
-                Speech       0.26      0.35      0.30       350
-    String Instruments       0.64      0.73      0.68       702
-      Tearing Scraping       0.12      0.60      0.20        47
-               Thunder       0.35      0.93      0.50        95
-          Toilet Flush       0.28      0.92      0.43        37
-                 Tools       0.10      0.61      0.17        28
-                 Train       0.25      0.76      0.37       132
-             Truck Bus       0.13      0.70      0.23        61
-        Typing Writing       0.38      0.59      0.46        76
-               Vehicle       0.64      0.50      0.56       616
-         Water Running       0.32      0.70      0.44       107
-               Weather       0.33      0.67      0.44       209
-          Wild Animals       0.56      0.56      0.56       353
-                  Wind       0.08      0.53      0.14        59
-      Wind Instruments       0.63      0.80      0.70       412
+            Accelerating, revving, vroom       0.21      0.76      0.33        34
+                               Accordion       0.21      0.75      0.33        16
+                         Acoustic guitar       0.50      0.91      0.64        99
+                                Aircraft       0.24      0.83      0.37        35
+                                   Alarm       0.71      0.60      0.65       285
+                                  Animal       0.86      0.69      0.77       631
+                           Animal sounds       0.86      0.59      0.70       743
+                                Applause       0.68      0.93      0.79        73
+                                    Bark       0.70      0.95      0.80        74
+                               Bass drum       0.37      0.88      0.52        51
+                             Bass guitar       0.61      0.83      0.70        72
+            Bathtub (filling or washing)       0.19      0.82      0.31        39
+                                    Bell       0.62      0.76      0.69       178
+                                 Bicycle       0.42      0.54      0.47        52
+                            Bicycle bell       0.63      0.96      0.76        25
+                                    Bird       0.65      0.66      0.65       256
+ Bird vocalization, bird call, bird song       0.40      0.61      0.48       146
+                     Boat, Water vehicle       0.10      0.48      0.16        21
+                                 Boiling       0.23      0.92      0.37        12
+                                    Boom       0.31      0.94      0.47        33
+                 Bowed string instrument       0.88      0.89      0.88       325
+                        Brass instrument       0.86      0.92      0.89       165
+                               Breathing       0.41      0.68      0.52        85
+                     Burping, eructation       0.70      0.86      0.77        37
+                                     Bus       0.17      0.72      0.28        40
+                                    Buzz       0.14      0.47      0.21        17
+                                  Camera       0.40      0.72      0.51        61
+                                     Car       0.41      0.56      0.47       147
+                          Car passing by       0.23      0.81      0.35        31
+                                     Cat       0.57      0.77      0.65        65
+                                 Chatter       0.20      0.51      0.29        72
+                                Cheering       0.33      0.95      0.49        41
+                    Chewing, mastication       0.33      0.82      0.47        34
+                        Chicken, rooster       0.48      0.72      0.57        32
+              Child speech, kid speaking       0.16      0.64      0.26        36
+                                   Chime       0.43      0.84      0.57        37
+                            Chink, clink       0.26      0.58      0.36        65
+                            Chirp, tweet       0.22      0.57      0.31        77
+                        Chuckle, chortle       0.13      0.82      0.22        17
+                             Church bell       0.44      0.77      0.56        22
+                                Clapping       0.39      0.87      0.53        76
+                                   Clock       0.52      0.94      0.67        34
+                         Coin (dropping)       0.31      0.76      0.44        79
+                       Computer keyboard       0.39      0.72      0.51        36
+                            Conversation       0.11      0.50      0.17        20
+                                   Cough       0.44      0.75      0.56        60
+                                 Cowbell       0.49      0.88      0.63        34
+                                   Crack       0.24      0.88      0.38        32
+                                 Crackle       0.30      0.76      0.43        55
+                            Crash cymbal       0.42      1.00      0.59        36
+                                 Cricket       0.40      0.86      0.55        42
+                                    Crow       0.16      0.69      0.26        13
+                                   Crowd       0.33      0.81      0.47        62
+                            Crowd sounds       0.61      0.69      0.65       189
+                    Crumpling, crinkling       0.34      0.88      0.49        48
+                                Crushing       0.19      0.76      0.31        45
+                         Crying, sobbing       0.17      0.72      0.27        25
+                  Cupboard open or close       0.14      0.82      0.24        22
+                     Cutlery, silverware       0.29      0.65      0.40        71
+                                  Cymbal       0.70      0.91      0.79       126
+                      Dishes, pots, pans       0.29      0.66      0.40        62
+                                     Dog       0.74      0.75      0.74       123
+                  Domestic animals, pets       0.75      0.75      0.75       189
+            Domestic sounds, home sounds       0.82      0.37      0.51      1035
+                                    Door       0.53      0.65      0.59       228
+                                Doorbell       0.19      0.73      0.30        15
+                    Drawer open or close       0.25      0.90      0.39        30
+                                   Drill       0.20      0.68      0.31        28
+                                    Drip       0.34      0.71      0.46        52
+                                    Drum       0.75      0.88      0.81       232
+                                Drum kit       0.68      0.86      0.76        74
+                         Electric guitar       0.49      0.85      0.62       115
+                                  Engine       0.49      0.64      0.56       211
+                         Engine starting       0.30      0.78      0.43        27
+                               Explosion       0.78      0.80      0.79       210
+                                    Fart       0.68      0.81      0.74        90
+                          Female singing       0.26      0.79      0.39        29
+           Female speech, woman speaking       0.31      0.66      0.42        92
+                      Fill (with liquid)       0.12      0.78      0.21        27
+                         Finger snapping       0.42      0.94      0.58        33
+                                    Fire       0.39      0.68      0.49        74
+                               Fireworks       0.40      0.79      0.53        67
+           Fixed-wing aircraft, airplane       0.21      0.86      0.34        22
+                                    Fowl       0.30      0.65      0.41        40
+                                    Frog       0.27      0.75      0.40        24
+                           Frying (food)       0.16      0.82      0.27        17
+                                    Gasp       0.13      0.83      0.22        12
+                                  Giggle       0.21      0.79      0.34        29
+                                   Glass       0.55      0.70      0.62       185
+                            Glockenspiel       0.38      0.82      0.52        28
+                                    Gong       0.42      0.87      0.57        38
+                                Growling       0.14      0.73      0.24        11
+                                  Guitar       0.79      0.85      0.82       359
+                           Gull, seagull       0.22      0.53      0.31        19
+                        Gunshot, gunfire       0.36      0.81      0.50        72
+                                Gurgling       0.22      0.80      0.34        50
+                                  Hammer       0.36      0.62      0.46        42
+                                   Hands       0.51      0.76      0.61       125
+                               Harmonica       0.37      0.93      0.53        27
+                                    Harp       0.38      0.88      0.54        34
+                                  Hi-hat       0.46      0.88      0.60        85
+                                    Hiss       0.17      0.52      0.25        44
+                     Human group actions       0.62      0.68      0.65       204
+                            Human sounds       0.95      0.58      0.72      1479
+                             Human voice       0.86      0.66      0.74       809
+                                  Idling       0.15      0.77      0.25        26
+                           Impact sounds       0.79      0.50      0.62       646
+                                  Insect       0.51      0.72      0.60        82
+                      Keyboard (musical)       0.66      0.64      0.65       289
+                           Keys jangling       0.28      0.72      0.40        40
+                                   Knock       0.46      0.88      0.60        50
+                                Laughter       0.66      0.80      0.72       158
+                                  Liquid       0.50      0.69      0.58       224
+Livestock, farm animals, working animals       0.41      0.53      0.46        95
+                            Male singing       0.24      0.77      0.36        31
+               Male speech, man speaking       0.25      0.48      0.33       106
+                       Mallet percussion       0.52      0.95      0.68        57
+                      Marimba, xylophone       0.27      1.00      0.42        22
+                          Mechanical fan       0.11      0.93      0.20        14
+                       Mechanical sounds       0.92      0.25      0.39      1996
+                              Mechanisms       0.55      0.60      0.57       209
+                                    Meow       0.45      0.82      0.58        40
+                          Microwave oven       0.32      0.84      0.47        32
+                    Motor vehicle (road)       0.62      0.60      0.61       287
+                              Motorcycle       0.30      0.92      0.45        38
+                                   Music       0.98      0.79      0.88      2417
+                      Musical instrument       0.98      0.80      0.88      2252
+                           Nature sounds       0.82      0.62      0.70       729
+                                   Ocean       0.42      0.81      0.55        48
+                                   Organ       0.39      0.76      0.52        55
+                             Other Event       0.28      0.65      0.39        62
+                 Packing tape, duct tape       0.19      0.65      0.29        20
+                              Percussion       0.89      0.79      0.84       588
+                                   Piano       0.60      0.80      0.68       140
+               Plucked string instrument       0.80      0.85      0.82       377
+                                    Pour       0.14      0.77      0.24        43
+                              Power tool       0.21      0.69      0.32        29
+                                 Printer       0.37      0.64      0.47        25
+                                    Purr       0.41      0.87      0.55        15
+                   Race car, auto racing       0.31      0.89      0.47        19
+                          Rail transport       0.49      0.77      0.59       132
+                                    Rain       0.41      0.82      0.54        96
+                                Raindrop       0.20      0.74      0.31        27
+                           Ratchet, pawl       0.24      0.83      0.38        18
+                                  Rattle       0.16      0.49      0.24        39
+                     Rattle (instrument)       0.27      0.81      0.40        37
+                      Respiratory sounds       0.64      0.70      0.67       169
+                                Ringtone       0.29      0.62      0.39        32
+                                     Run       0.37      0.78      0.50        50
+                                  Sawing       0.22      0.73      0.34        26
+                                Scissors       0.14      0.67      0.24        21
+      Scratching (performance technique)       0.41      0.72      0.53        43
+                               Screaming       0.30      0.86      0.44        50
+                                 Screech       0.16      0.36      0.22        33
+                                 Shatter       0.56      0.88      0.69        75
+                                   Shout       0.22      0.76      0.35        54
+                                    Sigh       0.26      0.74      0.38        19
+                                 Singing       0.56      0.77      0.65       120
+               Sink (filling or washing)       0.25      0.83      0.38        69
+                                   Siren       0.25      0.35      0.29        20
+                              Skateboard       0.27      0.74      0.39        19
+                                    Slam       0.32      0.76      0.45        84
+                            Sliding door       0.25      0.69      0.37        45
+                              Snare drum       0.64      0.90      0.75       130
+                                  Sneeze       0.17      0.79      0.28        14
+                                  Speech       0.61      0.60      0.61       320
+                      Speech synthesizer       0.10      0.57      0.17        14
+                        Splash, splatter       0.34      0.68      0.45        66
+                                  Squeak       0.38      0.40      0.39        92
+                                  Stream       0.39      0.87      0.53        45
+                                   Strum       0.36      0.86      0.51        37
+              Subway, metro, underground       0.37      0.85      0.51        65
+                                   Tabla       0.40      0.86      0.55        14
+                              Tambourine       0.55      0.79      0.65        56
+                                     Tap       0.24      0.43      0.31        68
+                                 Tearing       0.26      0.74      0.39        47
+                               Telephone       0.54      0.65      0.59       113
+                             Thump, thud       0.19      0.43      0.26        77
+                                 Thunder       0.80      0.95      0.87        93
+                            Thunderstorm       0.80      0.95      0.87        95
+                                    Tick       0.05      0.50      0.10        12
+                               Tick-tock       0.38      1.00      0.55        15
+                            Toilet flush       0.41      1.00      0.58        37
+                                   Tools       0.42      0.51      0.46       155
+            Traffic noise, roadway noise       0.16      0.62      0.26        42
+                                   Train       0.23      0.67      0.35        67
+                        Trickle, dribble       0.15      0.83      0.26        41
+                                   Truck       0.06      0.43      0.10        21
+                                 Trumpet       0.79      0.94      0.86       102
+                              Typewriter       0.31      0.76      0.44        21
+                                  Typing       0.53      0.76      0.62        76
+                                 Vehicle       0.78      0.63      0.70       556
+         Vehicle horn, car horn, honking       0.35      0.57      0.43        30
+                          Vehicle sounds       0.79      0.63      0.70       571
+                         Walk, footsteps       0.41      0.59      0.48        92
+                                   Water       0.59      0.69      0.63       281
+                       Water tap, faucet       0.36      0.82      0.50        92
+                             Waves, surf       0.43      0.91      0.58        32
+                              Whispering       0.41      0.82      0.55        39
+                   Whoosh, swoosh, swish       0.66      0.83      0.74        66
+                            Wild animals       0.75      0.65      0.69       353
+                                    Wind       0.23      0.61      0.34        59
+                              Wind chime       0.27      0.87      0.41        15
+    Wind instrument, woodwind instrument       0.93      0.88      0.91       412
+                                    Wood       0.14      0.43      0.21        54
+                                 Writing       0.33      0.64      0.44        53
+                                    Yell       0.11      0.68      0.19        22
+                       Zipper (clothing)       0.53      0.84      0.65        57
 
-             micro avg       0.46      0.58      0.52     19508
-             macro avg       0.33      0.62      0.39     19508
-          weighted avg       0.58      0.58      0.54     19508
-           samples avg       0.39      0.50      0.41     19508
+                               micro avg       0.56      0.68      0.61     29442
+                               macro avg       0.41      0.74      0.50     29442
+                            weighted avg       0.71      0.68      0.65     29442
+                             samples avg       0.58      0.68      0.59     29442

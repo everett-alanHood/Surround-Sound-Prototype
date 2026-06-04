@@ -1,0 +1,1834 @@
+{
+  "Accelerating, revving, vroom": {
+    "specific": [
+      "Accelerating_and_revving_and_vroom",
+      "Accelerating, revving, vroom"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Accordion": {
+    "specific": [
+      "Accordion",
+      "Accordion"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Acoustic guitar": {
+    "specific": [
+      "Acoustic_guitar",
+      "Acoustic guitar"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Aircraft": {
+    "specific": [
+      "Aircraft",
+      "Aircraft"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Alarm": {
+    "specific": [
+      "Alarm",
+      "Alarm"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Animal": {
+    "specific": [
+      "Animal",
+      "Animal"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Applause": {
+    "specific": [
+      "Applause",
+      "Applause"
+    ],
+    "parents": [
+      "Crowd sounds"
+    ]
+  },
+  "Bark": {
+    "specific": [
+      "Bark",
+      "Bark"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Bass drum": {
+    "specific": [
+      "Bass_drum",
+      "Bass drum"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Bass guitar": {
+    "specific": [
+      "Bass_guitar",
+      "Bass guitar"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Bathtub (filling or washing)": {
+    "specific": [
+      "Bathtub_(filling_or_washing)",
+      "Bathtub (filling or washing)"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Bell": {
+    "specific": [
+      "Bell",
+      "Bell"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Bicycle": {
+    "specific": [
+      "Bicycle",
+      "Bicycle"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Bicycle bell": {
+    "specific": [
+      "Bicycle_bell",
+      "Bicycle bell"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Bird": {
+    "specific": [
+      "Bird",
+      "Bird"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Bird vocalization, bird call, bird song": {
+    "specific": [
+      "Bird_vocalization_and_bird_call_and_bird_song",
+      "Bird vocalization, bird call, bird song"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Boat, Water vehicle": {
+    "specific": [
+      "Boat_and_Water_vehicle",
+      "Boat, Water vehicle"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Boiling": {
+    "specific": [
+      "Boiling",
+      "Boiling"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Boom": {
+    "specific": [
+      "Boom",
+      "Boom"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Bowed string instrument": {
+    "specific": [
+      "Bowed_string_instrument",
+      "Bowed string instrument"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Brass instrument": {
+    "specific": [
+      "Brass_instrument",
+      "Brass instrument"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Breathing": {
+    "specific": [
+      "Breathing",
+      "Breathing"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Burping, eructation": {
+    "specific": [
+      "Burping_and_eructation",
+      "Burping, eructation"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Bus": {
+    "specific": [
+      "Bus",
+      "Bus"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Buzz": {
+    "specific": [
+      "Buzz",
+      "Buzz"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Camera": {
+    "specific": [
+      "Camera",
+      "Camera"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Car": {
+    "specific": [
+      "Car",
+      "Car"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Car passing by": {
+    "specific": [
+      "Car_passing_by",
+      "Car passing by"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Cat": {
+    "specific": [
+      "Cat",
+      "Cat"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Chatter": {
+    "specific": [
+      "Chatter",
+      "Chatter"
+    ],
+    "parents": [
+      "Crowd sounds"
+    ]
+  },
+  "Cheering": {
+    "specific": [
+      "Cheering",
+      "Cheering"
+    ],
+    "parents": [
+      "Crowd sounds"
+    ]
+  },
+  "Chewing, mastication": {
+    "specific": [
+      "Chewing_and_mastication",
+      "Chewing, mastication"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Chicken, rooster": {
+    "specific": [
+      "Chicken_and_rooster",
+      "Chicken, rooster"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Child speech, kid speaking": {
+    "specific": [
+      "Child_speech_and_kid_speaking",
+      "Child speech, kid speaking"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Chime": {
+    "specific": [
+      "Chime",
+      "Chime"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Chink, clink": {
+    "specific": [
+      "Chink_and_clink",
+      "Chink, clink"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Chirp, tweet": {
+    "specific": [
+      "Chirp_and_tweet",
+      "Chirp, tweet"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Chuckle, chortle": {
+    "specific": [
+      "Chuckle_and_chortle",
+      "Chuckle, chortle"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Church bell": {
+    "specific": [
+      "Church_bell",
+      "Church bell"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Clapping": {
+    "specific": [
+      "Clapping",
+      "Clapping"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Clock": {
+    "specific": [
+      "Clock",
+      "Clock"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Coin (dropping)": {
+    "specific": [
+      "Coin_(dropping)",
+      "Coin (dropping)"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Computer keyboard": {
+    "specific": [
+      "Computer_keyboard",
+      "Computer keyboard"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Conversation": {
+    "specific": [
+      "Conversation",
+      "Conversation"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Cough": {
+    "specific": [
+      "Cough",
+      "Cough"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Cowbell": {
+    "specific": [
+      "Cowbell",
+      "Cowbell"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Crack": {
+    "specific": [
+      "Crack",
+      "Crack"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Crackle": {
+    "specific": [
+      "Crackle",
+      "Crackle"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Crash cymbal": {
+    "specific": [
+      "Crash_cymbal",
+      "Crash cymbal"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Cricket": {
+    "specific": [
+      "Cricket",
+      "Cricket"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Crow": {
+    "specific": [
+      "Crow",
+      "Crow"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Crowd": {
+    "specific": [
+      "Crowd",
+      "Crowd"
+    ],
+    "parents": [
+      "Crowd sounds"
+    ]
+  },
+  "Crumpling, crinkling": {
+    "specific": [
+      "Crumpling_and_crinkling",
+      "Crumpling, crinkling"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Crushing": {
+    "specific": [
+      "Crushing",
+      "Crushing"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Crying, sobbing": {
+    "specific": [
+      "Crying_and_sobbing",
+      "Crying, sobbing"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Cupboard open or close": {
+    "specific": [
+      "Cupboard_open_or_close",
+      "Cupboard open or close"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Cutlery, silverware": {
+    "specific": [
+      "Cutlery_and_silverware",
+      "Cutlery, silverware"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Cymbal": {
+    "specific": [
+      "Cymbal",
+      "Cymbal"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Dishes, pots, pans": {
+    "specific": [
+      "Dishes_and_pots_and_pans",
+      "Dishes, pots, pans"
+    ],
+    "parents": [
+      "Other Event"
+    ]
+  },
+  "Dog": {
+    "specific": [
+      "Dog",
+      "Dog"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Domestic animals, pets": {
+    "specific": [
+      "Domestic_animals_and_pets",
+      "Domestic animals, pets"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Domestic sounds, home sounds": {
+    "specific": [
+      "Domestic_sounds_and_home_sounds",
+      "Domestic sounds, home sounds"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Door": {
+    "specific": [
+      "Door",
+      "Door"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Doorbell": {
+    "specific": [
+      "Doorbell",
+      "Doorbell"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Drawer open or close": {
+    "specific": [
+      "Drawer_open_or_close",
+      "Drawer open or close"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Drill": {
+    "specific": [
+      "Drill",
+      "Drill"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Drip": {
+    "specific": [
+      "Drip",
+      "Drip"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Drum": {
+    "specific": [
+      "Drum",
+      "Drum"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Drum kit": {
+    "specific": [
+      "Drum_kit",
+      "Drum kit"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Electric guitar": {
+    "specific": [
+      "Electric_guitar",
+      "Electric guitar"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Engine": {
+    "specific": [
+      "Engine",
+      "Engine"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Engine starting": {
+    "specific": [
+      "Engine_starting",
+      "Engine starting"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Explosion": {
+    "specific": [
+      "Explosion",
+      "Explosion"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Fart": {
+    "specific": [
+      "Fart",
+      "Fart"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Female singing": {
+    "specific": [
+      "Female_singing",
+      "Female singing"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Female speech, woman speaking": {
+    "specific": [
+      "Female_speech_and_woman_speaking",
+      "Female speech, woman speaking"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Fill (with liquid)": {
+    "specific": [
+      "Fill_(with_liquid)",
+      "Fill (with liquid)"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Finger snapping": {
+    "specific": [
+      "Finger_snapping",
+      "Finger snapping"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Fire": {
+    "specific": [
+      "Fire",
+      "Fire"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Fireworks": {
+    "specific": [
+      "Fireworks",
+      "Fireworks"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Fixed-wing aircraft, airplane": {
+    "specific": [
+      "Fixed-wing_aircraft_and_airplane",
+      "Fixed-wing aircraft, airplane"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Fowl": {
+    "specific": [
+      "Fowl",
+      "Fowl"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Frog": {
+    "specific": [
+      "Frog",
+      "Frog"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Frying (food)": {
+    "specific": [
+      "Frying_(food)",
+      "Frying (food)"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Gasp": {
+    "specific": [
+      "Gasp",
+      "Gasp"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Giggle": {
+    "specific": [
+      "Giggle",
+      "Giggle"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Glass": {
+    "specific": [
+      "Glass",
+      "Glass"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Glockenspiel": {
+    "specific": [
+      "Glockenspiel",
+      "Glockenspiel"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Gong": {
+    "specific": [
+      "Gong",
+      "Gong"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Growling": {
+    "specific": [
+      "Growling",
+      "Growling"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Guitar": {
+    "specific": [
+      "Guitar",
+      "Guitar"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Gull, seagull": {
+    "specific": [
+      "Gull_and_seagull",
+      "Gull, seagull"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Gunshot, gunfire": {
+    "specific": [
+      "Gunshot_and_gunfire",
+      "Gunshot, gunfire"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Gurgling": {
+    "specific": [
+      "Gurgling",
+      "Gurgling"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Hammer": {
+    "specific": [
+      "Hammer",
+      "Hammer"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Hands": {
+    "specific": [
+      "Hands",
+      "Hands"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Harmonica": {
+    "specific": [
+      "Harmonica",
+      "Harmonica"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Harp": {
+    "specific": [
+      "Harp",
+      "Harp"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Hi-hat": {
+    "specific": [
+      "Hi-hat",
+      "Hi-hat"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Hiss": {
+    "specific": [
+      "Hiss",
+      "Hiss"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Human group actions": {
+    "specific": [
+      "Human_group_actions",
+      "Human group actions"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Human voice": {
+    "specific": [
+      "Human_voice",
+      "Human voice"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Idling": {
+    "specific": [
+      "Idling",
+      "Idling"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Insect": {
+    "specific": [
+      "Insect",
+      "Insect"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Keyboard (musical)": {
+    "specific": [
+      "Keyboard_(musical)",
+      "Keyboard (musical)"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Keys jangling": {
+    "specific": [
+      "Keys_jangling",
+      "Keys jangling"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Knock": {
+    "specific": [
+      "Knock",
+      "Knock"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Laughter": {
+    "specific": [
+      "Laughter",
+      "Laughter"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Liquid": {
+    "specific": [
+      "Liquid",
+      "Liquid"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Livestock, farm animals, working animals": {
+    "specific": [
+      "Livestock_and_farm_animals_and_working_animals",
+      "Livestock, farm animals, working animals"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Male singing": {
+    "specific": [
+      "Male_singing",
+      "Male singing"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Male speech, man speaking": {
+    "specific": [
+      "Male_speech_and_man_speaking",
+      "Male speech, man speaking"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Mallet percussion": {
+    "specific": [
+      "Mallet_percussion",
+      "Mallet percussion"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Marimba, xylophone": {
+    "specific": [
+      "Marimba_and_xylophone",
+      "Marimba, xylophone"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Mechanical fan": {
+    "specific": [
+      "Mechanical_fan",
+      "Mechanical fan"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Mechanisms": {
+    "specific": [
+      "Mechanisms",
+      "Mechanisms"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Meow": {
+    "specific": [
+      "Meow",
+      "Meow"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Microwave oven": {
+    "specific": [
+      "Microwave_oven",
+      "Microwave oven"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Motor vehicle (road)": {
+    "specific": [
+      "Motor_vehicle_(road)",
+      "Motor vehicle (road)"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Motorcycle": {
+    "specific": [
+      "Motorcycle",
+      "Motorcycle"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Music": {
+    "specific": [
+      "Music",
+      "Music"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Musical instrument": {
+    "specific": [
+      "Musical_instrument",
+      "Musical instrument"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Ocean": {
+    "specific": [
+      "Ocean",
+      "Ocean"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Organ": {
+    "specific": [
+      "Organ",
+      "Organ"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Packing tape, duct tape": {
+    "specific": [
+      "Packing_tape_and_duct_tape",
+      "Packing tape, duct tape"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Percussion": {
+    "specific": [
+      "Percussion",
+      "Percussion"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Piano": {
+    "specific": [
+      "Piano",
+      "Piano"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Plucked string instrument": {
+    "specific": [
+      "Plucked_string_instrument",
+      "Plucked string instrument"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Pour": {
+    "specific": [
+      "Pour",
+      "Pour"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Power tool": {
+    "specific": [
+      "Power_tool",
+      "Power tool"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Printer": {
+    "specific": [
+      "Printer",
+      "Printer"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Purr": {
+    "specific": [
+      "Purr",
+      "Purr"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Race car, auto racing": {
+    "specific": [
+      "Race_car_and_auto_racing",
+      "Race car, auto racing"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Rail transport": {
+    "specific": [
+      "Rail_transport",
+      "Rail transport"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Rain": {
+    "specific": [
+      "Rain",
+      "Rain"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Raindrop": {
+    "specific": [
+      "Raindrop",
+      "Raindrop"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Ratchet, pawl": {
+    "specific": [
+      "Ratchet_and_pawl",
+      "Ratchet, pawl"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Rattle": {
+    "specific": [
+      "Rattle",
+      "Rattle"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Rattle (instrument)": {
+    "specific": [
+      "Rattle_(instrument)",
+      "Rattle (instrument)"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Respiratory sounds": {
+    "specific": [
+      "Respiratory_sounds",
+      "Respiratory sounds"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Ringtone": {
+    "specific": [
+      "Ringtone",
+      "Ringtone"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Run": {
+    "specific": [
+      "Run",
+      "Run"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Sawing": {
+    "specific": [
+      "Sawing",
+      "Sawing"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Scissors": {
+    "specific": [
+      "Scissors",
+      "Scissors"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Scratching (performance technique)": {
+    "specific": [
+      "Scratching_(performance_technique)",
+      "Scratching (performance technique)"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Screaming": {
+    "specific": [
+      "Screaming",
+      "Screaming"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Screech": {
+    "specific": [
+      "Screech",
+      "Screech"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Shatter": {
+    "specific": [
+      "Shatter",
+      "Shatter"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Shout": {
+    "specific": [
+      "Shout",
+      "Shout"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Sigh": {
+    "specific": [
+      "Sigh",
+      "Sigh"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Singing": {
+    "specific": [
+      "Singing",
+      "Singing"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Sink (filling or washing)": {
+    "specific": [
+      "Sink_(filling_or_washing)",
+      "Sink (filling or washing)"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Siren": {
+    "specific": [
+      "Siren",
+      "Siren"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Skateboard": {
+    "specific": [
+      "Skateboard",
+      "Skateboard"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Slam": {
+    "specific": [
+      "Slam",
+      "Slam"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Sliding door": {
+    "specific": [
+      "Sliding_door",
+      "Sliding door"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Snare drum": {
+    "specific": [
+      "Snare_drum",
+      "Snare drum"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Sneeze": {
+    "specific": [
+      "Sneeze",
+      "Sneeze"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Speech": {
+    "specific": [
+      "Speech",
+      "Speech"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Speech synthesizer": {
+    "specific": [
+      "Speech_synthesizer",
+      "Speech synthesizer"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Splash, splatter": {
+    "specific": [
+      "Splash_and_splatter",
+      "Splash, splatter"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Squeak": {
+    "specific": [
+      "Squeak",
+      "Squeak"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Stream": {
+    "specific": [
+      "Stream",
+      "Stream"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Strum": {
+    "specific": [
+      "Strum",
+      "Strum"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Subway, metro, underground": {
+    "specific": [
+      "Subway_and_metro_and_underground",
+      "Subway, metro, underground"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Tabla": {
+    "specific": [
+      "Tabla",
+      "Tabla"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Tambourine": {
+    "specific": [
+      "Tambourine",
+      "Tambourine"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Tap": {
+    "specific": [
+      "Tap",
+      "Tap"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Tearing": {
+    "specific": [
+      "Tearing",
+      "Tearing"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Telephone": {
+    "specific": [
+      "Telephone",
+      "Telephone"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Thump, thud": {
+    "specific": [
+      "Thump_and_thud",
+      "Thump, thud"
+    ],
+    "parents": [
+      "Impact sounds"
+    ]
+  },
+  "Thunder": {
+    "specific": [
+      "Thunder",
+      "Thunder"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Thunderstorm": {
+    "specific": [
+      "Thunderstorm",
+      "Thunderstorm"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Tick": {
+    "specific": [
+      "Tick",
+      "Tick"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Tick-tock": {
+    "specific": [
+      "Tick-tock",
+      "Tick-tock"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Toilet flush": {
+    "specific": [
+      "Toilet_flush",
+      "Toilet flush"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Tools": {
+    "specific": [
+      "Tools",
+      "Tools"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Traffic noise, roadway noise": {
+    "specific": [
+      "Traffic_noise_and_roadway_noise",
+      "Traffic noise, roadway noise"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Train": {
+    "specific": [
+      "Train",
+      "Train"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Trickle, dribble": {
+    "specific": [
+      "Trickle_and_dribble",
+      "Trickle, dribble"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Truck": {
+    "specific": [
+      "Truck",
+      "Truck"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Trumpet": {
+    "specific": [
+      "Trumpet",
+      "Trumpet"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Typewriter": {
+    "specific": [
+      "Typewriter",
+      "Typewriter"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Typing": {
+    "specific": [
+      "Typing",
+      "Typing"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Vehicle": {
+    "specific": [
+      "Vehicle",
+      "Vehicle"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Vehicle horn, car horn, honking": {
+    "specific": [
+      "Vehicle_horn_and_car_horn_and_honking",
+      "Vehicle horn, car horn, honking"
+    ],
+    "parents": [
+      "Vehicle sounds"
+    ]
+  },
+  "Walk, footsteps": {
+    "specific": [
+      "Walk_and_footsteps",
+      "Walk, footsteps"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Water": {
+    "specific": [
+      "Water",
+      "Water"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Water tap, faucet": {
+    "specific": [
+      "Water_tap_and_faucet",
+      "Water tap, faucet"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Waves, surf": {
+    "specific": [
+      "Waves_and_surf",
+      "Waves, surf"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Whispering": {
+    "specific": [
+      "Whispering",
+      "Whispering"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Whoosh, swoosh, swish": {
+    "specific": [
+      "Whoosh_and_swoosh_and_swish",
+      "Whoosh, swoosh, swish"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Wild animals": {
+    "specific": [
+      "Wild_animals",
+      "Wild animals"
+    ],
+    "parents": [
+      "Animal sounds"
+    ]
+  },
+  "Wind": {
+    "specific": [
+      "Wind",
+      "Wind"
+    ],
+    "parents": [
+      "Nature sounds"
+    ]
+  },
+  "Wind chime": {
+    "specific": [
+      "Wind_chime",
+      "Wind chime"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Wind instrument, woodwind instrument": {
+    "specific": [
+      "Wind_instrument_and_woodwind_instrument",
+      "Wind instrument, woodwind instrument"
+    ],
+    "parents": [
+      "Music"
+    ]
+  },
+  "Wood": {
+    "specific": [
+      "Wood",
+      "Wood"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Writing": {
+    "specific": [
+      "Writing",
+      "Writing"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Yell": {
+    "specific": [
+      "Yell",
+      "Yell"
+    ],
+    "parents": [
+      "Human sounds"
+    ]
+  },
+  "Zipper (clothing)": {
+    "specific": [
+      "Zipper_(clothing)",
+      "Zipper (clothing)"
+    ],
+    "parents": [
+      "Mechanical sounds"
+    ]
+  },
+  "Vehicle sounds": {
+    "specific": [],
+    "parents": []
+  },
+  "Other Event": {
+    "specific": [],
+    "parents": []
+  },
+  "Animal sounds": {
+    "specific": [],
+    "parents": []
+  },
+  "Human sounds": {
+    "specific": [],
+    "parents": []
+  },
+  "Impact sounds": {
+    "specific": [],
+    "parents": []
+  },
+  "Mechanical sounds": {
+    "specific": [],
+    "parents": []
+  },
+  "Nature sounds": {
+    "specific": [],
+    "parents": []
+  },
+  "Crowd sounds": {
+    "specific": [],
+    "parents": []
+  }
+}

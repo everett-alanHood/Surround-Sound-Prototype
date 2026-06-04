@@ -1,20 +1,26 @@
 """
-Unified evaluation script for Surround Sound models.
+Unified evaluation script for Surround Sound V2.
 
-- Environment model: single-label scene classification
-- Events model: multi-label sound event tagging
+- Environment model: 1D CNN over VGGish embeddings (10x128)
+- Events model:      2D CNN over log-mel spectrograms, multi-label
+- Speech model:      2D CNN over log-mel, 3-class detection
 
-Outputs go to:
+Outputs:
     src/results/environment/<split>/
     src/results/events/<split>/
+    src/results/speech/<split>/
 
-Usage examples (from project root):
-    python -m src.eval --task env --split val
-    python -m src.eval --task events --split val
-    python -m src.eval --task both --split val
+Usage:
+    python src/eval.py --task env
+    python src/eval.py --task events
+    python src/eval.py --task speech
+    python src/eval.py --task both
+    python src/eval.py --task all
 """
 
 import argparse
+import json
+from ast import literal_eval
 from pathlib import Path
 
 import numpy as np
@@ -22,7 +28,10 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
 from sklearn.metrics import (
     accuracy_score,
     classification_report,
@@ -35,198 +44,172 @@ from sklearn.metrics import (
     average_precision_score,
 )
 
-# -------------------------------------------------------------------------
-# Project helpers from models_live.py
-# -------------------------------------------------------------------------
 from live_demo.models_live import (
     DATA_ENV_DIR,
     DATA_EVENTS_DIR,
+    DATA_SPEECH_DIR,
     OUTPUT_ENV_DIR,
     OUTPUT_EVENTS_DIR,
+    OUTPUT_SPEECH_DIR,
     load_environment_model,
     load_events_model,
+    load_speech_model,
     load_env_label_map,
     load_event_label_map,
+    load_speech_label_map,
     DEVICE,
 )
 
-# Where to write outputs (images & CSVs)
 RESULTS_ROOT = Path(__file__).resolve().parent / "results"
 
-# -------------------------------------------------------------------------
-# CONFIG: matches your parquet schemas
-# -------------------------------------------------------------------------
+# ── Index paths ───────────────────────────────────────────────────────────────
 
-# Environment: data/environment/data_index.parquet
-ENV_INDEX_PATH = DATA_ENV_DIR / "data_index.parquet"
-ENV_SPEC_COL = "feature_path"
-ENV_LABEL_COL = "y"
-ENV_SPLIT_COL = None  # no split column in env parquet; --split is ignored
+ENV_INDEX_PARQ    = DATA_ENV_DIR    / "data_index.parquet"
+ENV_INDEX_CSV     = DATA_ENV_DIR    / "data_index.csv"
+EVENTS_INDEX_PARQ = DATA_EVENTS_DIR / "data_index.parquet"
+EVENTS_INDEX_CSV  = DATA_EVENTS_DIR / "data_index.csv"
+SPEECH_INDEX_PARQ = DATA_SPEECH_DIR / "data_index.parquet"
+SPEECH_INDEX_CSV  = DATA_SPEECH_DIR / "data_index.csv"
 
-# Events: data/events/data_index.parquet
-EVENTS_INDEX_PATH = DATA_EVENTS_DIR / "data_index.parquet"
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-EVENTS_SPEC_COL = "feature_path"
-EVENTS_LABEL_IDS_COL = "label_ids"
-EVENTS_SPLIT_COL = None  # no split column in events parquet; --split is ignored
-
-# Threshold for multi-label predictions
-EVENTS_THRESHOLD = 0.5
+def load_index(parq: Path, csv: Path) -> pd.DataFrame:
+    if parq.exists():
+        return pd.read_parquet(parq)
+    if csv.exists():
+        return pd.read_csv(csv)
+    raise FileNotFoundError(f"No index found at {parq} or {csv}")
 
 
-# -------------------------------------------------------------------------
-# Utility: spec loading
-# -------------------------------------------------------------------------
-
-def _load_spec(path: Path) -> torch.Tensor:
-    """
-    Load a spectrogram saved as either .npy or torch tensor.
-    Ensures shape is (1, F, T).
-
-    feature_path points into ...processed/features/... as .npy (or .pt).
-    """
-    if path.suffix == ".npy":
-        arr = np.load(path)
-        x = torch.from_numpy(arr).float()
-    elif path.suffix in (".pt", ".pth"):
-        x = torch.load(path).float()
-    else:
-        raise ValueError(f"Unsupported spec file extension: {path.suffix} ({path})")
-
-    # shape fixups: want (1, F, T)
-    if x.ndim == 2:
-        x = x.unsqueeze(0)       # (F, T) -> (1, F, T)
-    elif x.ndim == 3 and x.shape[0] != 1:
-        x = x.permute(2, 0, 1)
-    return x
+def parse_label_ids(v) -> list:
+    if isinstance(v, (list, tuple, np.ndarray)):
+        return [int(x) for x in v]
+    if isinstance(v, str):
+        s = v.strip().replace("[", "").replace("]", "")
+        if not s:
+            return []
+        return [int(t) for t in s.replace(",", " ").split()]
+    return []
 
 
-# -------------------------------------------------------------------------
-# Environment dataset (single-label)
-# -------------------------------------------------------------------------
+# ── Environment dataset ───────────────────────────────────────────────────────
 
 class EnvironmentEvalDataset(Dataset):
-    def __init__(self, split: str = "val"):
-        if not ENV_INDEX_PATH.exists():
-            raise FileNotFoundError(f"Environment index not found: {ENV_INDEX_PATH}")
+    N_FRAMES  = 10
+    EMBED_DIM = 128
 
-        df = pd.read_parquet(ENV_INDEX_PATH)
-
-        if ENV_SPEC_COL not in df.columns or ENV_LABEL_COL not in df.columns:
-            raise KeyError(
-                f"Expected columns '{ENV_SPEC_COL}' and '{ENV_LABEL_COL}' "
-                f"in {ENV_INDEX_PATH}. Got columns: {list(df.columns)}"
-            )
-
-        env_feat_dir = DATA_ENV_DIR / "processed" / "features"
-
-        def remap_env_path(p):
-            p = Path(p)
-            return env_feat_dir / p.name
-
-        df[ENV_SPEC_COL] = df[ENV_SPEC_COL].apply(remap_env_path)
-
+    def __init__(self):
+        df = load_index(ENV_INDEX_PARQ, ENV_INDEX_CSV)
+        feat_root = DATA_ENV_DIR / "processed" / "features"
+        df["feature_path"] = df["feature_path"].apply(
+            lambda p: str(feat_root / Path(str(p)).name)
+        )
+        if "y" in df.columns:
+            df["label_id"] = df["y"].astype(int)
+        elif "primary_label" in df.columns:
+            with open(DATA_ENV_DIR / "label_to_id.json") as f:
+                l2i = json.load(f)
+            df["label_id"] = df["primary_label"].map(l2i)
+        df = df[df["label_id"].notna()].copy()
+        df["label_id"] = df["label_id"].astype(int)
         self.df = df.reset_index(drop=True)
 
-    def __len__(self):
-        return len(self.df)
+    def __len__(self): return len(self.df)
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        spec_path = Path(row[ENV_SPEC_COL])
-        y = int(row[ENV_LABEL_COL])
-        x = _load_spec(spec_path)
-        return x, y
+        emb = np.load(row["feature_path"]).astype(np.float32)
+        if emb.shape[0] < self.N_FRAMES:
+            emb = np.pad(emb, ((0, self.N_FRAMES - emb.shape[0]), (0, 0)))
+        else:
+            emb = emb[:self.N_FRAMES]
+        return torch.from_numpy(emb.T), int(row["label_id"])
 
 
-# -------------------------------------------------------------------------
-# Events dataset (multi-label)
-# -------------------------------------------------------------------------
+# ── Events dataset ────────────────────────────────────────────────────────────
 
 class EventsEvalDataset(Dataset):
-    def __init__(self, split: str, num_classes: int):
-        if not EVENTS_INDEX_PATH.exists():
-            raise FileNotFoundError(f"Events index not found: {EVENTS_INDEX_PATH}")
+    DB_MIN = -80.0
+    DB_MAX  = 0.0
+    TARGET_FRAMES = 313
 
-        df = pd.read_parquet(EVENTS_INDEX_PATH)
-
-        if EVENTS_SPEC_COL not in df.columns or EVENTS_LABEL_IDS_COL not in df.columns:
-            raise KeyError(
-                f"Expected columns '{EVENTS_SPEC_COL}' and '{EVENTS_LABEL_IDS_COL}' "
-                f"in {EVENTS_INDEX_PATH}. Got columns: {list(df.columns)}"
-            )
-
-        events_feat_dir = DATA_EVENTS_DIR / "processed" / "features"
-
-        def remap_evt_path(p):
-            p = Path(p)
-            return events_feat_dir / p.name
-
-        df[EVENTS_SPEC_COL] = df[EVENTS_SPEC_COL].apply(remap_evt_path)
-
-        self.df = df.reset_index(drop=True)
+    def __init__(self, num_classes: int):
+        df = load_index(EVENTS_INDEX_PARQ, EVENTS_INDEX_CSV)
+        feat_root = DATA_EVENTS_DIR / "processed" / "features"
+        df["feature_path"] = df["feature_path"].apply(
+            lambda p: str(feat_root / Path(str(p)).name)
+        )
+        df["label_ids"] = df["label_ids"].apply(parse_label_ids)
+        df = df[df["label_ids"].map(len) > 0].reset_index(drop=True)
+        self.df = df
         self.num_classes = num_classes
 
-    def __len__(self):
-        return len(self.df)
-
-    def _parse_label_ids(self, v) -> np.ndarray:
-        """
-        Parse label_ids into a multi-hot numpy vector of length num_classes.
-
-        In parquet, label_ids is already a list-like: [3, 7, 8, 9, 37, 38, 59]
-        Supports list, np.ndarray, and string (fallback).
-        """
-        vec = np.zeros(self.num_classes, dtype=np.float32)
-
-        # list or array of ints
-        if isinstance(v, (list, tuple, np.ndarray)):
-            for idx in v:
-                idx = int(idx)
-                if 0 <= idx < self.num_classes:
-                    vec[idx] = 1.0
-            return vec
-
-        # missing
-        if isinstance(v, float) and np.isnan(v):
-            return vec
-
-        # string fallback e.g. "[3, 7, 8]" or "3,7,8" or "3 7 8"
-        if isinstance(v, str):
-            s = v.strip()
-            if not s:
-                return vec
-            s = s.replace("[", "").replace("]", "")
-            for token in s.replace(",", " ").split():
-                idx = int(token)
-                if 0 <= idx < self.num_classes:
-                    vec[idx] = 1.0
-            return vec
-
-        # anything else -> empty
-        return vec
+    def __len__(self): return len(self.df)
 
     def __getitem__(self, idx):
-        row = self.df.iloc[idx]
-        spec_path = Path(row[EVENTS_SPEC_COL])
-        label_ids_val = row[EVENTS_LABEL_IDS_COL]
+        row  = self.df.iloc[idx]
+        spec = np.load(row["feature_path"]).astype(np.float32)
+        spec = np.clip((spec - self.DB_MIN) / (self.DB_MAX - self.DB_MIN), 0.0, 1.0)
+        T = spec.shape[1]
+        if T < self.TARGET_FRAMES:
+            spec = np.pad(spec, ((0, 0), (0, self.TARGET_FRAMES - T)))
+        else:
+            spec = spec[:, :self.TARGET_FRAMES]
+        x = torch.from_numpy(spec).unsqueeze(0)
+        y = np.zeros(self.num_classes, dtype=np.float32)
+        for cid in row["label_ids"]:
+            if 0 <= cid < self.num_classes:
+                y[cid] = 1.0
+        return x, torch.from_numpy(y)
 
-        x = _load_spec(spec_path)
-        y_vec = self._parse_label_ids(label_ids_val)
-        y = torch.from_numpy(y_vec).float()  # (C,)
 
-        return x, y
+# ── Speech dataset ────────────────────────────────────────────────────────────
+
+class SpeechEvalDataset(Dataset):
+    TARGET_FRAMES = 313
+
+    def __init__(self, label_to_id: dict):
+        df = load_index(SPEECH_INDEX_PARQ, SPEECH_INDEX_CSV)
+        feat_root = DATA_SPEECH_DIR / "processed" / "features"
+        df["feature_path"] = df["feature_path"].apply(
+            lambda p: str(feat_root / Path(str(p)).name)
+        )
+
+        # Remap index labels to match checkpoint label map
+        # index uses 'conversation', checkpoint uses 'multi_speaker'
+        remap = {"conversation": "multi_speaker"}
+        if "label" in df.columns:
+            df["label"] = df["label"].replace(remap)
+            df["y"] = df["label"].map(label_to_id)
+        elif "y" not in df.columns:
+            raise KeyError("Speech index missing 'label' or 'y' column.")
+
+        df = df[df["y"].notna()].copy()
+        df["y"] = df["y"].astype(int)
+        df = df[df["feature_path"].apply(lambda p: Path(p).exists())].reset_index(drop=True)
+        self.df = df
+        print(f"[INFO] Speech eval dataset: {len(df)} clips")
+
+    def __len__(self): return len(self.df)
+
+    def __getitem__(self, idx):
+        row  = self.df.iloc[idx]
+        feat = np.load(row["feature_path"]).astype(np.float32)  # (128, T)
+        T = feat.shape[1]
+        if T < self.TARGET_FRAMES:
+            feat = np.pad(feat, ((0, 0), (0, self.TARGET_FRAMES - T)))
+        else:
+            feat = feat[:, :self.TARGET_FRAMES]
+        x = torch.from_numpy(feat).unsqueeze(0)  # (1, 128, T)
+        return x, int(row["y"])
 
 
-# -------------------------------------------------------------------------
-# Plot helpers
-# -------------------------------------------------------------------------
+# ── Plot helpers ──────────────────────────────────────────────────────────────
 
 def plot_confusion_matrix(cm, class_names, normalize, title, out_path: Path):
     if normalize:
         cm = cm.astype(float) / cm.sum(axis=1, keepdims=True).clip(min=1e-9)
-
-    plt.figure(figsize=(7, 6))
+    plt.figure(figsize=(max(6, len(class_names) * 0.8), max(5, len(class_names) * 0.7)))
     plt.imshow(cm, interpolation="nearest", aspect="auto")
     plt.title(title)
     plt.colorbar()
@@ -236,7 +219,6 @@ def plot_confusion_matrix(cm, class_names, normalize, title, out_path: Path):
     plt.ylabel("True label")
     plt.xlabel("Predicted label")
     plt.tight_layout()
-
     out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path, dpi=200)
     plt.close()
@@ -244,269 +226,250 @@ def plot_confusion_matrix(cm, class_names, normalize, title, out_path: Path):
 
 def plot_bar(values, labels, ylabel, title, out_path: Path, ylim=(0, 1.0)):
     x = np.arange(len(labels))
-    plt.figure(figsize=(max(8, len(labels) * 0.5), 4))
+    plt.figure(figsize=(max(8, len(labels) * 0.45), 4))
     plt.bar(x, values)
-    plt.xticks(x, labels, rotation=45, ha="right")
+    plt.xticks(x, labels, rotation=45, ha="right", fontsize=7)
     plt.ylabel(ylabel)
-    if ylim is not None:
+    if ylim:
         plt.ylim(*ylim)
     plt.title(title)
     plt.tight_layout()
-
     out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path, dpi=200)
     plt.close()
 
 
-# -------------------------------------------------------------------------
-# Environment evaluation
-# -------------------------------------------------------------------------
+# ── Environment evaluation ────────────────────────────────────────────────────
 
 def evaluate_environment(split: str, batch_size: int):
-    print(f"\n=== Evaluating ENVIRONMENT model on split='{split}' ===")
+    print(f"\n=== Evaluating ENVIRONMENT model (split='{split}') ===")
 
-    id2label_env = load_env_label_map()
-    class_names = [id2label_env[i] for i in sorted(id2label_env.keys())]
+    id2label    = load_env_label_map()
+    class_names = [id2label[i] for i in sorted(id2label)]
+    num_classes = len(class_names)
 
-    dataset = EnvironmentEvalDataset(split=split)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    dataset = EnvironmentEvalDataset()
+    loader  = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+    model   = load_environment_model(num_classes=num_classes)
 
-    model = load_environment_model(num_classes=len(class_names))
-
-    all_logits = []
-    all_targets = []
-
+    all_logits, all_targets = [], []
     model.eval()
     with torch.no_grad():
         for x, y in loader:
-            x = x.to(DEVICE)
-            y = y.to(DEVICE)
+            all_logits.append(model(x.to(DEVICE)).cpu().numpy())
+            all_targets.append(y.numpy())
 
-            logits = model(x)
-            all_logits.append(logits.cpu().numpy())
-            all_targets.append(y.cpu().numpy())
-
-    logits = np.concatenate(all_logits, axis=0)
-    y_true = np.concatenate(all_targets, axis=0).astype(int)
+    logits = np.concatenate(all_logits)
+    y_true = np.concatenate(all_targets).astype(int)
     y_pred = logits.argmax(axis=1)
 
-    # Metrics
-    acc = accuracy_score(y_true, y_pred)
-    top2 = top_k_accuracy_score(y_true, logits, k=2)
+    acc  = accuracy_score(y_true, y_pred)
+    top2 = top_k_accuracy_score(y_true, logits, k=min(2, num_classes))
 
     print(f"Accuracy:  {acc:.4f}")
     print(f"Top-2 acc: {top2:.4f}")
 
-    cm = confusion_matrix(y_true, y_pred)
+    cm = confusion_matrix(y_true, y_pred, labels=np.arange(num_classes))
     per_class_acc = cm.diagonal() / cm.sum(axis=1).clip(min=1e-9)
 
     print("\nPer-class accuracy:")
     for name, a in zip(class_names, per_class_acc):
-        print(f"  {name:15s}: {a:.3f}")
+        print(f"  {name:20s}: {a:.3f}")
+    print("\nClassification report:")
+    print(classification_report(y_true, y_pred, target_names=class_names, digits=4))
 
-    report_str = classification_report(
-        y_true, y_pred, target_names=class_names, digits=3
-    )
-    print("\nClassification report:\n")
-    print(report_str)
+    out_dir = RESULTS_ROOT / "environment" / split
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # CSV outputs
-    env_results_dir = RESULTS_ROOT / "environment" / split
-    env_results_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame({"metric": ["accuracy", "top2_accuracy"], "value": [acc, top2]}).to_csv(
+        out_dir / "overall_metrics.csv", index=False)
 
-    # Overall metrics CSV
-    overall_df = pd.DataFrame(
-        {
-            "metric": ["accuracy", "top2_accuracy"],
-            "value": [acc, top2],
-        }
-    )
-    overall_df.to_csv(env_results_dir / "overall_metrics.csv", index=False)
-
-    # Per-class metrics CSV
     prec, rec, f1, support = precision_recall_fscore_support(
-        y_true, y_pred, labels=np.arange(len(class_names)), zero_division=0
-    )
-    per_class_df = pd.DataFrame(
-        {
-            "class_id": np.arange(len(class_names)),
-            "class_name": class_names,
-            "precision": prec,
-            "recall": rec,
-            "f1": f1,
-            "support": support,
-            "accuracy": per_class_acc,
-        }
-    )
-    per_class_df.to_csv(env_results_dir / "per_class_metrics.csv", index=False)
+        y_true, y_pred, labels=np.arange(num_classes), zero_division=0)
+    pd.DataFrame({
+        "class_id": np.arange(num_classes), "class_name": class_names,
+        "precision": prec, "recall": rec, "f1": f1,
+        "support": support, "accuracy": per_class_acc,
+    }).to_csv(out_dir / "per_class_metrics.csv", index=False)
 
-    # dump raw confusion matrix as CSV
     cm_df = pd.DataFrame(cm, index=class_names, columns=class_names)
-    cm_df.to_csv(env_results_dir / "confusion_matrix_counts.csv")
+    cm_df.to_csv(out_dir / "confusion_matrix_counts.csv")
 
-    # Plots
-    plot_confusion_matrix(
-        cm,
-        class_names,
-        normalize=False,
+    plot_confusion_matrix(cm, class_names, normalize=False,
         title=f"Environment Confusion Matrix ({split}, counts)",
-        out_path=env_results_dir / "confusion_matrix_counts.png",
-    )
-    plot_confusion_matrix(
-        cm,
-        class_names,
-        normalize=True,
+        out_path=out_dir / "confusion_matrix_counts.png")
+    plot_confusion_matrix(cm, class_names, normalize=True,
         title=f"Environment Confusion Matrix ({split}, normalized)",
-        out_path=env_results_dir / "confusion_matrix_normalized.png",
-    )
+        out_path=out_dir / "confusion_matrix_normalized.png")
+    plot_bar(f1, class_names, "F1-score",
+        f"Environment per-class F1 ({split})", out_path=out_dir / "per_class_f1.png")
 
-    plot_bar(
-        values=f1,
-        labels=class_names,
-        ylabel="F1-score",
-        title=f"Environment per-class F1 ({split})",
-        out_path=env_results_dir / "per_class_f1.png",
-    )
+    print(f"[INFO] Results -> {out_dir}")
 
 
-# -------------------------------------------------------------------------
-# Events evaluation (multi-label)
-# -------------------------------------------------------------------------
+# ── Events evaluation ─────────────────────────────────────────────────────────
 
 def evaluate_events(split: str, batch_size: int):
-    print(f"\n=== Evaluating EVENTS model on split='{split}' ===")
+    print(f"\n=== Evaluating EVENTS model (split='{split}') ===")
 
-    id2label_events = load_event_label_map()
-    num_classes = len(id2label_events)
-    class_names = [id2label_events[i] for i in sorted(id2label_events.keys())]
+    id2label    = load_event_label_map()
+    num_classes = len(id2label)
+    class_names = [id2label[i] for i in sorted(id2label)]
 
-    dataset = EventsEvalDataset(split=split, num_classes=num_classes)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+    config_path = OUTPUT_EVENTS_DIR / "events_training_config.json"
+    threshold   = 0.5
+    if config_path.exists():
+        with config_path.open() as f:
+            threshold = float(json.load(f).get("best_threshold", 0.5))
+        print(f"[INFO] Using tuned threshold: {threshold:.3f}")
 
-    model = load_events_model(num_classes=num_classes)
+    dataset = EventsEvalDataset(num_classes=num_classes)
+    loader  = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+    model   = load_events_model(num_classes=num_classes)
 
-    all_probs = []
-    all_targets = []
-
+    all_probs, all_targets = [], []
     model.eval()
     with torch.no_grad():
         for x, y in loader:
-            x = x.to(DEVICE)
-            y = y.to(DEVICE)
+            all_probs.append(torch.sigmoid(model(x.to(DEVICE))).cpu().numpy())
+            all_targets.append(y.numpy())
 
-            logits = model(x)
-            probs = torch.sigmoid(logits)
+    probs  = np.concatenate(all_probs)
+    y_true = np.concatenate(all_targets)
+    y_pred = (probs >= threshold).astype(int)
 
-            all_probs.append(probs.cpu().numpy())
-            all_targets.append(y.cpu().numpy())
-
-    probs = np.concatenate(all_probs, axis=0)         # (N, C)
-    y_true = np.concatenate(all_targets, axis=0)      # (N, C)
-    y_pred = (probs >= EVENTS_THRESHOLD).astype(int)  # (N, C)
-
-    # Overall metrics
-    micro_f1 = f1_score(y_true, y_pred, average="micro", zero_division=0)
-    macro_f1 = f1_score(y_true, y_pred, average="macro", zero_division=0)
+    micro_f1   = f1_score(y_true, y_pred, average="micro",   zero_division=0)
+    macro_f1   = f1_score(y_true, y_pred, average="macro",   zero_division=0)
     micro_prec = precision_score(y_true, y_pred, average="micro", zero_division=0)
-    micro_rec = recall_score(y_true, y_pred, average="micro", zero_division=0)
+    micro_rec  = recall_score(y_true, y_pred,    average="micro", zero_division=0)
+    ap_per_cls = average_precision_score(y_true, probs, average=None)
+    mAP        = float(np.mean(ap_per_cls))
 
-    # Average precision (per class and macro mAP)
-    ap_per_class = average_precision_score(y_true, probs, average=None)
-    mAP = float(np.mean(ap_per_class))
-
+    print(f"Threshold:       {threshold:.3f}")
     print(f"Micro-F1:        {micro_f1:.4f}")
     print(f"Macro-F1:        {macro_f1:.4f}")
     print(f"Micro-precision: {micro_prec:.4f}")
     print(f"Micro-recall:    {micro_rec:.4f}")
     print(f"mAP (macro):     {mAP:.4f}")
 
-    # Per-class metrics
-    prec_c, rec_c, f1_c, support_c = precision_recall_fscore_support(
-        y_true, y_pred, average=None, zero_division=0
-    )
+    out_dir = RESULTS_ROOT / "events" / split
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    events_results_dir = RESULTS_ROOT / "events" / split
-    events_results_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame({
+        "metric": ["micro_f1","macro_f1","micro_precision","micro_recall","mAP","threshold"],
+        "value":  [micro_f1, macro_f1, micro_prec, micro_rec, mAP, threshold],
+    }).to_csv(out_dir / "overall_metrics.csv", index=False)
 
-    # Overall metrics CSV
-    overall_df = pd.DataFrame(
-        {
-            "metric": [
-                "micro_f1",
-                "macro_f1",
-                "micro_precision",
-                "micro_recall",
-                "mAP",
-            ],
-            "value": [micro_f1, macro_f1, micro_prec, micro_rec, mAP],
-        }
-    )
-    overall_df.to_csv(events_results_dir / "overall_metrics.csv", index=False)
+    prec_c, rec_c, f1_c, sup_c = precision_recall_fscore_support(
+        y_true, y_pred, average=None, zero_division=0)
+    pd.DataFrame({
+        "class_id": np.arange(num_classes), "class_name": class_names,
+        "precision": prec_c, "recall": rec_c, "f1": f1_c,
+        "support": sup_c, "average_precision": ap_per_cls,
+    }).to_csv(out_dir / "per_class_metrics.csv", index=False)
 
-    # Per-class metrics CSV
-    per_class_df = pd.DataFrame(
-        {
-            "class_id": np.arange(num_classes),
-            "class_name": class_names,
-            "precision": prec_c,
-            "recall": rec_c,
-            "f1": f1_c,
-            "support": support_c,
-            "average_precision": ap_per_class,
-        }
-    )
-    per_class_df.to_csv(events_results_dir / "per_class_metrics.csv", index=False)
+    plot_bar(f1_c, class_names, "F1-score",
+        f"Events per-class F1 ({split})", out_path=out_dir / "per_class_f1.png")
+    plot_bar(ap_per_cls, class_names, "Average Precision",
+        f"Events per-class AP ({split})", out_path=out_dir / "per_class_AP.png")
 
-    # Plots: F1 per class & AP per class
-    plot_bar(
-        values=f1_c,
-        labels=class_names,
-        ylabel="F1-score",
-        title=f"Events per-class F1 ({split})",
-        out_path=events_results_dir / "per_class_f1.png",
-    )
-    plot_bar(
-        values=ap_per_class,
-        labels=class_names,
-        ylabel="Average Precision",
-        title=f"Events per-class AP ({split})",
-        out_path=events_results_dir / "per_class_AP.png",
-        ylim=(0, 1.0),
-    )
+    print(f"[INFO] Results -> {out_dir}")
 
 
-# -------------------------------------------------------------------------
-# Main
-# -------------------------------------------------------------------------
+# ── Speech evaluation ─────────────────────────────────────────────────────────
+
+def evaluate_speech(split: str, batch_size: int):
+    print(f"\n=== Evaluating SPEECH model (split='{split}') ===")
+
+    # Load label maps from checkpoint to guarantee alignment
+    from live_demo.models_live import OUTPUT_SPEECH_DIR, SPEECH_CKPT
+    ckpt = torch.load(SPEECH_CKPT, map_location="cpu", weights_only=False)
+    label_to_id = ckpt.get("label_to_id", {})
+    id2label    = {int(v): k for k, v in label_to_id.items()}
+    class_names = [id2label[i] for i in sorted(id2label)]
+    num_classes = len(class_names)
+    print(f"[INFO] Using checkpoint label map: {label_to_id}")
+
+    dataset = SpeechEvalDataset(label_to_id=label_to_id)
+    loader  = DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+    model   = load_speech_model(num_classes=num_classes)
+
+    all_logits, all_targets = [], []
+    model.eval()
+    with torch.no_grad():
+        for x, y in loader:
+            all_logits.append(model(x.to(DEVICE)).cpu().numpy())
+            all_targets.append(np.asarray(y, dtype=np.int64))
+
+    logits = np.concatenate(all_logits)
+    y_true = np.concatenate(all_targets).astype(int)
+    y_pred = logits.argmax(axis=1)
+
+    acc  = accuracy_score(y_true, y_pred)
+    top2 = top_k_accuracy_score(y_true, logits, k=min(2, num_classes), labels=np.arange(num_classes))
+    macro_f1 = f1_score(y_true, y_pred, average="macro", zero_division=0)
+
+    print(f"Accuracy:   {acc:.4f}")
+    print(f"Top-2 acc:  {top2:.4f}")
+    print(f"Macro-F1:   {macro_f1:.4f}")
+
+    cm = confusion_matrix(y_true, y_pred, labels=np.arange(num_classes))
+    per_class_acc = cm.diagonal() / cm.sum(axis=1).clip(min=1e-9)
+
+    print("\nPer-class accuracy:")
+    for name, a in zip(class_names, per_class_acc):
+        print(f"  {name:20s}: {a:.3f}")
+    print("\nClassification report:")
+    print(classification_report(y_true, y_pred, target_names=class_names, digits=4))
+
+    out_dir = RESULTS_ROOT / "speech" / split
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    pd.DataFrame({
+        "metric": ["accuracy", "top2_accuracy", "macro_f1"],
+        "value":  [acc, top2, macro_f1],
+    }).to_csv(out_dir / "overall_metrics.csv", index=False)
+
+    prec, rec, f1, support = precision_recall_fscore_support(
+        y_true, y_pred, labels=np.arange(num_classes), zero_division=0)
+    pd.DataFrame({
+        "class_id": np.arange(num_classes), "class_name": class_names,
+        "precision": prec, "recall": rec, "f1": f1,
+        "support": support, "accuracy": per_class_acc,
+    }).to_csv(out_dir / "per_class_metrics.csv", index=False)
+
+    cm_df = pd.DataFrame(cm, index=class_names, columns=class_names)
+    cm_df.to_csv(out_dir / "confusion_matrix_counts.csv")
+
+    plot_confusion_matrix(cm, class_names, normalize=False,
+        title=f"Speech Confusion Matrix ({split}, counts)",
+        out_path=out_dir / "confusion_matrix_counts.png")
+    plot_confusion_matrix(cm, class_names, normalize=True,
+        title=f"Speech Confusion Matrix ({split}, normalized)",
+        out_path=out_dir / "confusion_matrix_normalized.png")
+    plot_bar(f1, class_names, "F1-score",
+        f"Speech per-class F1 ({split})", out_path=out_dir / "per_class_f1.png")
+
+    print(f"[INFO] Results -> {out_dir}")
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--task",
-        type=str,
-        choices=["env", "events", "both"],
-        default="both",
-        help="Which model(s) to evaluate.",
-    )
-    parser.add_argument(
-        "--split",
-        type=str,
-        default="val",
-        help="Split name (ignored for now since parquet has no split columns).",
-    )
-    parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=64,
-        help="Batch size for evaluation.",
-    )
-    args = parser.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--task", choices=["env", "events", "speech", "both", "all"],
+                    default="all",
+                    help="'both' = env+events, 'all' = env+events+speech")
+    ap.add_argument("--split", default="val")
+    ap.add_argument("--batch_size", type=int, default=64)
+    args = ap.parse_args()
 
-    if args.task in ("env", "both"):
+    if args.task in ("env", "both", "all"):
         evaluate_environment(split=args.split, batch_size=args.batch_size)
-
-    if args.task in ("events", "both"):
+    if args.task in ("events", "both", "all"):
         evaluate_events(split=args.split, batch_size=args.batch_size)
+    if args.task in ("speech", "all"):
+        evaluate_speech(split=args.split, batch_size=args.batch_size)
 
 
 if __name__ == "__main__":

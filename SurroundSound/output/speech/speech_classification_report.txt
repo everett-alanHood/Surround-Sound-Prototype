@@ -1,0 +1,9 @@
+                precision    recall  f1-score   support
+
+     no_speech     0.2808    0.8507    0.4222        67
+single_speaker     0.9995    0.9640    0.9814      3858
+ multi_speaker     0.9639    0.9642    0.9641      2517
+
+      accuracy                         0.9629      6442
+     macro avg     0.7480    0.9263    0.7892      6442
+  weighted avg     0.9781    0.9629    0.9688      6442

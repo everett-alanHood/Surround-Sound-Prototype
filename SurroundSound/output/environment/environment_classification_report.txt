@@ -1,14 +1,14 @@
                 precision    recall  f1-score   support
 
-        animal     0.7271    0.5631    0.6347       705
-         crowd     0.4033    0.9932    0.5737       292
-        indoor     0.4106    0.7745    0.5367       439
- other_ambient     0.5132    0.8584    0.6424       226
-outdoor_nature     0.2853    0.5753    0.3815       365
-vehicle_ground     0.9191    0.1842    0.3069      1911
- vehicle_water     0.2848    0.7917    0.4189       533
-         water     0.7795    0.3605    0.4930      1118
+        animal     0.5329    0.6073    0.5676       988
+         crowd     0.4125    0.7900    0.5420       662
+        indoor     0.8795    0.6054    0.7171      5507
+ other_ambient     0.5096    0.6766    0.5814       470
+outdoor_nature     0.2945    0.5545    0.3847      1634
+vehicle_ground     0.7677    0.5519    0.6422      4245
+ vehicle_water     0.3396    0.4988    0.4041       866
+         water     0.5356    0.6076    0.5693      1213
 
-      accuracy                         0.4666      5589
-     macro avg     0.5404    0.6376    0.4985      5589
-  weighted avg     0.6818    0.4666    0.4466      5589
+      accuracy                         0.5899     15585
+     macro avg     0.5340    0.6115    0.5511     15585
+  weighted avg     0.6780    0.5899    0.6120     15585

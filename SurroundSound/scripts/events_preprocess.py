@@ -1,11 +1,19 @@
 """
-Preprocess FSD50K Events audio clips:
+Preprocess FSD50K Events audio clips.
 
+V2 improvements:
+- Parallel processing with --workers
+- Skip already-processed clips (resume support)
+- LUFS loudness normalization (via pyloudnorm) with peak fallback
+- Absolute path resolution (safe to run from any directory)
+- Args for manifest, output dirs, and overwrite flag
+
+Steps:
 - Resample to 16 kHz mono
-- Normalize (peak)
-- Trim/pad to fixed length (10 s)
-- Compute log-mel spectrograms
-- Save cleaned WAV + .npy features
+- Normalize loudness (LUFS target: -23 LUFS, fallback: peak)
+- Pad or trim to 10 seconds
+- Compute 128-band log-mel spectrogram
+- Save cleaned WAV + .npy feature
 
 Inputs:
   data/events/manifests/fsd50k_events_manifest.csv
@@ -15,103 +23,188 @@ Outputs:
   data/events/processed/features/<clip_id>.npy
 """
 
+import argparse
 import csv
 import json
-from pathlib import Path
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 import librosa
 import numpy as np
 import soundfile as sf
 from tqdm import tqdm
 
+try:
+    import pyloudnorm as pyln
+    HAVE_PYLOUDNORM = True
+except ImportError:
+    HAVE_PYLOUDNORM = False
 
-MANIFEST = Path("data/events/manifests/fsd50k_events_manifest.csv")
+# ── Args ──────────────────────────────────────────────────────────────────────
 
-OUT_ROOT = Path("data/events/processed")
-WAV_OUT = OUT_ROOT / "wav"
-FEAT_OUT = OUT_ROOT / "features"
+def parse_args():
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    DATA_EVENTS  = PROJECT_ROOT / "data" / "events"
 
-SAMPLE_RATE = 16000
-TARGET_DURATION = 10.0  # seconds
-N_MELS = 128
-HOP_LENGTH = 512
-FMAX = 8000
+    ap = argparse.ArgumentParser(description="Preprocess FSD50K events audio to log-mel .npy features.")
+    ap.add_argument("--manifest", type=Path,
+                    default=DATA_EVENTS / "manifests" / "fsd50k_events_manifest.csv")
+    ap.add_argument("--out-root", type=Path,
+                    default=DATA_EVENTS / "processed")
+    ap.add_argument("--workers", type=int, default=4,
+                    help="Parallel processing threads (default: 4)")
+    ap.add_argument("--overwrite", action="store_true",
+                    help="Re-process clips that already have .npy files")
+    ap.add_argument("--lufs-target", type=float, default=-23.0,
+                    help="LUFS loudness target (default: -23.0). Ignored if pyloudnorm not installed.")
+    return ap.parse_args()
 
 
-def normalize_audio(y: np.ndarray) -> np.ndarray:
+# ── Audio constants ───────────────────────────────────────────────────────────
+
+SAMPLE_RATE     = 16000
+TARGET_DURATION = 10.0
+TARGET_SAMPLES  = int(TARGET_DURATION * SAMPLE_RATE)
+N_MELS          = 128
+HOP_LENGTH      = 512
+FMAX            = 8000
+
+
+# ── Normalization ─────────────────────────────────────────────────────────────
+
+def normalize_lufs(y: np.ndarray, target_lufs: float = -23.0) -> np.ndarray:
+    """
+    Normalize to target integrated loudness (LUFS) using pyloudnorm.
+    Falls back to peak normalization if signal is too quiet to measure.
+    """
+    meter = pyln.Meter(SAMPLE_RATE)
+    try:
+        loudness = meter.integrated_loudness(y)
+        if np.isfinite(loudness) and loudness > -70:
+            return pyln.normalize.loudness(y, loudness, target_lufs)
+    except Exception:
+        pass
+    # Fallback: peak normalize
     peak = np.abs(y).max()
     return y / peak if peak > 0 else y
 
 
-def preprocess_file(src_path: Path, clip_id: str):
-    # load
-    y, sr = librosa.load(str(src_path), sr=SAMPLE_RATE, mono=True)
+def normalize_peak(y: np.ndarray) -> np.ndarray:
+    peak = np.abs(y).max()
+    return y / peak if peak > 0 else y
 
-    # normalize
-    y = normalize_audio(y)
 
-    # pad or trim
-    target_len = int(TARGET_DURATION * SAMPLE_RATE)
-    if y.shape[0] < target_len:
-        y = np.pad(y, (0, target_len - y.shape[0]))
-    elif y.shape[0] > target_len:
-        y = y[:target_len]
+# ── Per-clip processing ───────────────────────────────────────────────────────
 
-    # save cleaned wav
-    out_wav = WAV_OUT / f"{clip_id}.wav"
-    sf.write(str(out_wav), y, SAMPLE_RATE)
+def preprocess_clip(
+    clip_id: str,
+    audio_path: Path,
+    wav_out: Path,
+    feat_out: Path,
+    overwrite: bool,
+    lufs_target: float,
+) -> str:
+    out_wav  = wav_out  / f"{clip_id}.wav"
+    out_feat = feat_out / f"{clip_id}.npy"
 
-    # compute log-mel spectrogram
-    mel = librosa.feature.melspectrogram(
-        y=y,
-        sr=SAMPLE_RATE,
-        n_mels=N_MELS,
-        hop_length=HOP_LENGTH,
-        fmax=FMAX,
-    )
-    logmel = librosa.power_to_db(mel, ref=np.max)
+    if out_feat.exists() and not overwrite:
+        return "skip"
 
-    # save feature array
-    out_feat = FEAT_OUT / f"{clip_id}.npy"
-    np.save(out_feat, logmel)
+    if not audio_path.exists():
+        return "missing"
 
+    try:
+        # Load
+        y, _ = librosa.load(str(audio_path), sr=SAMPLE_RATE, mono=True)
+
+        # Normalize
+        if HAVE_PYLOUDNORM:
+            y = normalize_lufs(y, lufs_target)
+        else:
+            y = normalize_peak(y)
+
+        # Pad or trim
+        if len(y) < TARGET_SAMPLES:
+            y = np.pad(y, (0, TARGET_SAMPLES - len(y)))
+        else:
+            y = y[:TARGET_SAMPLES]
+
+        # Save cleaned WAV
+        sf.write(str(out_wav), y, SAMPLE_RATE)
+
+        # Log-mel spectrogram
+        mel    = librosa.feature.melspectrogram(
+            y=y, sr=SAMPLE_RATE,
+            n_mels=N_MELS, hop_length=HOP_LENGTH, fmax=FMAX,
+        )
+        logmel = librosa.power_to_db(mel, ref=np.max)
+        np.save(out_feat, logmel)
+
+        return "ok"
+
+    except Exception as e:
+        print(f"[WARN] {clip_id}: {e}")
+        return "fail"
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    if not MANIFEST.exists():
-        raise FileNotFoundError(f"Manifest not found: {MANIFEST}")
+    args = parse_args()
 
-    WAV_OUT.mkdir(parents=True, exist_ok=True)
-    FEAT_OUT.mkdir(parents=True, exist_ok=True)
+    wav_out  = args.out_root / "wav"
+    feat_out = args.out_root / "features"
+    wav_out.mkdir(parents=True, exist_ok=True)
+    feat_out.mkdir(parents=True, exist_ok=True)
 
-    stats = Counter()
-    rows = []
+    if not args.manifest.exists():
+        raise FileNotFoundError(f"Manifest not found: {args.manifest}")
 
-    # Read manifest first
-    with MANIFEST.open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            rows.append(row)
+    if HAVE_PYLOUDNORM:
+        print(f"[INFO] LUFS normalization enabled (target: {args.lufs_target} LUFS)")
+    else:
+        print("[INFO] pyloudnorm not installed — using peak normalization.")
+        print("       Install with: pip install pyloudnorm")
 
-    print(f"Found {len(rows)} manifest entries in {MANIFEST}")
+    # Load manifest
+    with args.manifest.open(newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
 
-    for row in tqdm(rows, desc="Preprocessing Events"):
-        clip_id = row["clip_id"]
-        audio_path = Path(row["audio_path"])
+    print(f"[INFO] Manifest rows: {len(rows)}")
+    print(f"[INFO] Workers:       {args.workers}")
+    print(f"[INFO] Output root:   {args.out_root}")
 
-        if not audio_path.exists():
-            stats["missing"] += 1
-            continue
+    counts = Counter()
 
-        try:
-            preprocess_file(audio_path, clip_id)
-            stats["ok"] += 1
-        except Exception as e:
-            print(f"[WARN] {clip_id}: {e}")
-            stats["fail"] += 1
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+        futures = {
+            pool.submit(
+                preprocess_clip,
+                row["clip_id"],
+                Path(row["audio_path"]),
+                wav_out,
+                feat_out,
+                args.overwrite,
+                args.lufs_target,
+            ): row["clip_id"]
+            for row in rows
+        }
+        with tqdm(total=len(rows), unit="clip", desc="Preprocessing") as pbar:
+            for future in as_completed(futures):
+                status = future.result()
+                counts[status] += 1
+                pbar.update(1)
+                pbar.set_postfix(
+                    ok=counts["ok"],
+                    skip=counts["skip"],
+                    fail=counts["fail"],
+                    missing=counts["missing"],
+                )
 
-    print("\n[PREPROCESS SUMMARY]")
-    print(json.dumps(stats, indent=2))
+    print(f"\n[PREPROCESS SUMMARY]")
+    print(json.dumps(dict(counts), indent=2))
+    print(f"Features -> {feat_out}")
 
 
 if __name__ == "__main__":

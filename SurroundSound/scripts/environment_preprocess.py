@@ -1,127 +1,130 @@
 """
-Preprocess environment audio clips from both:
-- data/environment/raw
-- data/environment_unbalanced/raw
+Preprocess AudioSet environment clips from TFRecord files.
 
 Steps:
-- Resample to 16 kHz mono
-- Normalize loudness
-- Trim/pad to fixed length (10 s)
-- Generate log-mel spectrograms
-- Save cleaned WAV + .npy features into data/environment/processed
+- Read VGGish embeddings from AudioSet TFRecord files using TensorFlow
+- Match each record against the environment manifest (ytid + start_time)
+- Extract 10x128 embedding matrix per clip
+- Save as .npy files to data/environment/processed/features
+
+No raw audio or ffmpeg required.
 """
 
-import json
+import csv
 import collections
 from pathlib import Path
 
-import librosa
-import soundfile as sf
 import numpy as np
+import tensorflow as tf
 from tqdm import tqdm
 
-# Directories
-RAW_DIRS = [
-    Path("data/environment/raw"),
-    Path("data/environment_unbalanced/raw"),
-]
+# ── Paths ─────────────────────────────────────────────────────────────────────
 
-OUT_DIR = Path("data/environment/processed")
-WAV_OUT = OUT_DIR / "wav"
-FEAT_OUT = OUT_DIR / "features"
+TFRECORD_DIR = Path("data/environment/tfrecords")
+MANIFEST     = Path("data/manifests/environment_segments.csv")
+OUT_DIR      = Path("data/environment/processed/features")
 
-SAMPLE_RATE = 16000
-TARGET_DURATION = 10.0  # seconds
-TARGET_SAMPLES = int(TARGET_DURATION * SAMPLE_RATE)
-N_MELS = 128
-HOP_LENGTH = 512
+N_FRAMES  = 10
+EMBED_DIM = 128
 
-WAV_OUT.mkdir(parents=True, exist_ok=True)
-FEAT_OUT.mkdir(parents=True, exist_ok=True)
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-def normalize_audio(y):
-    peak = np.abs(y).max()
-    return y / peak if peak > 0 else y
 
-def preprocess_file(path: Path):
-    stem = path.stem
+# ── Manifest loader ───────────────────────────────────────────────────────────
 
-    out_wav = WAV_OUT / f"{stem}.wav"
-    out_feat = FEAT_OUT / f"{stem}.npy"
+def load_manifest(path: Path):
+    keys   = set()
+    labels = {}
+    with path.open() as f:
+        for row in csv.DictReader(f):
+            ytid  = row["ytid"].strip()
+            start = int(float(row["start"]))
+            keys.add((ytid, start))
+            labels[(ytid, start)] = row.get("label_names", "")
+    return keys, labels
 
-    # Skip if already processed
-    if out_wav.exists() and out_feat.exists():
-        return
 
-    # load (resample to 16k mono)
-    y, sr = librosa.load(path, sr=SAMPLE_RATE, mono=True)
+# ── TFRecord parsing ──────────────────────────────────────────────────────────
 
-    # normalize
-    y = normalize_audio(y)
-
-    # pad or trim to fixed length
-    if len(y) < TARGET_SAMPLES:
-        y = np.pad(y, (0, TARGET_SAMPLES - len(y)))
-    elif len(y) > TARGET_SAMPLES:
-        y = y[:TARGET_SAMPLES]
-
-    # save cleaned wav
-    sf.write(out_wav, y, SAMPLE_RATE)
-
-    # compute log-mel spectrogram
-    mel = librosa.feature.melspectrogram(
-        y=y,
-        sr=SAMPLE_RATE,
-        n_mels=N_MELS,
-        hop_length=HOP_LENGTH,
-        fmax=8000,
+def parse_record(example):
+    """
+    Parse one AudioSet SequenceExample.
+    Returns (video_id, start_time, embeddings_tensor) or None on failure.
+    """
+    context_features = {
+        "video_id":           tf.io.FixedLenFeature([], tf.string),
+        "start_time_seconds": tf.io.FixedLenFeature([], tf.float32),
+        "end_time_seconds":   tf.io.FixedLenFeature([], tf.float32),
+        "labels":             tf.io.VarLenFeature(tf.int64),
+    }
+    sequence_features = {
+        "audio_embedding": tf.io.FixedLenSequenceFeature([], tf.string),
+    }
+    ctx, seq = tf.io.parse_single_sequence_example(
+        example,
+        context_features=context_features,
+        sequence_features=sequence_features,
     )
-    logmel = librosa.power_to_db(mel, ref=np.max)
 
-    # save feature array
-    np.save(out_feat, logmel)
+    video_id   = ctx["video_id"].numpy().decode("utf-8")
+    start_time = float(ctx["start_time_seconds"].numpy())
+
+    # Each frame is 128 uint8 bytes → decode and dequantize to float32 [-2, 2]
+    raw_frames = seq["audio_embedding"].numpy()  # shape: (n_frames,), each is bytes
+    frames = []
+    for raw in raw_frames:
+        arr = np.frombuffer(raw, dtype=np.uint8).astype(np.float32)
+        arr = arr / 255.0 * 4.0 - 2.0  # dequantize per AudioSet spec
+        frames.append(arr)
+
+    return video_id, start_time, frames
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    # Gather wavs from both raw dirs
-    all_wavs = []
-    for rd in RAW_DIRS:
-        if rd.exists():
-            files = sorted(rd.glob("*.wav"))
-            print(f"Found {len(files)} raw wavs in {rd}")
-            all_wavs.extend(files)
-        else:
-            print(f"[WARN] Raw dir does not exist, skipping: {rd}")
+    print(f"[INFO] Loading manifest: {MANIFEST}")
+    manifest_keys, label_map = load_manifest(MANIFEST)
+    print(f"[INFO] Manifest clips:   {len(manifest_keys)}")
 
-    # Unduplicate by stem, in case any overlap
-    unique = {}
-    for p in all_wavs:
-        unique.setdefault(p.stem, p)
-    wavs = list(unique.values())
+    tfrecord_files = sorted(str(p) for p in TFRECORD_DIR.rglob("*.tfrecord"))
+    print(f"[INFO] TFRecord files:   {len(tfrecord_files)}")
 
-    print(f"Total unique wavs to consider: {len(wavs)}")
+    counts = collections.Counter()
 
-    for wav in tqdm(wavs, desc="Processing"):
-        try:
-            preprocess_file(wav)
-        except Exception as e:
-            print(f"[WARN] {wav.name}: {e}")
+    for tf_path in tqdm(tfrecord_files, desc="TFRecord files", unit="file"):
+        dataset = tf.data.TFRecordDataset(tf_path, compression_type="")
+        for raw in dataset:
+            try:
+                video_id, start_time, frames = parse_record(raw)
+            except Exception as e:
+                counts["parse_error"] += 1
+                continue
 
-    # Optional metadata summary from both metadata files
-    meta_files = [
-        Path("data/environment/metadata.jsonl"),
-        Path("data/environment_unbalanced/metadata.jsonl"),
-    ]
-    c = collections.Counter()
-    for mf in meta_files:
-        if not mf.exists():
-            continue
-        with mf.open() as f:
-            for line in f:
-                rec = json.loads(line)
-                c[rec.get("status", "unknown")] += 1
+            start_int = int(round(start_time))
+            key = (video_id, start_int)
 
-    print("\n[METADATA SUMMARY]")
-    print(c)
+            if key not in manifest_keys:
+                counts["skipped"] += 1
+                continue
+
+            # Pad or trim to exactly N_FRAMES
+            if len(frames) < N_FRAMES:
+                frames += [np.zeros(EMBED_DIM, dtype=np.float32)] * (N_FRAMES - len(frames))
+            frames = frames[:N_FRAMES]
+
+            matrix = np.stack(frames, axis=0)  # (10, 128)
+
+            stem     = f"{video_id}_{start_int}"
+            out_path = OUT_DIR / f"{stem}.npy"
+            np.save(out_path, matrix)
+            counts["saved"] += 1
+
+    print(f"\n[DONE] Saved: {counts['saved']}  "
+          f"Skipped: {counts['skipped']}  "
+          f"Errors: {counts['parse_error']}")
+    print(f"       Features → {OUT_DIR}")
+
 
 if __name__ == "__main__":
     main()

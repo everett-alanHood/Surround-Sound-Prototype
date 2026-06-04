@@ -1,0 +1,7 @@
+trial,best_micro_f1,checkpoint,learning_rate,batch_size,dropout,focal_gamma,se_reduction,base_channels
+4,0.39205366579668255,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\events\trial_3_best.pt,0.0005,64,0.4,1.0,8,128
+1,0.3269073280371094,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\events\trial_0_best.pt,0.0002,64,0.5,1.0,8,128
+5,0.32093343615887726,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\events\trial_4_best.pt,0.0001,32,0.4,1.0,8,128
+3,0.3061843588262671,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\events\trial_2_best.pt,0.0005,32,0.5,1.0,16,64
+2,0.26586614361574895,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\events\trial_1_best.pt,0.0002,32,0.4,2.0,8,64
+6,0.26494263862332695,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\events\trial_5_best.pt,0.0002,64,0.3,2.0,8,64

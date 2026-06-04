@@ -1,6 +1,9 @@
+import json
+import os
 import sys
+import time
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import streamlit as st
@@ -8,309 +11,432 @@ import matplotlib.pyplot as plt
 import librosa.display
 import torch
 
-# importable /SurroundSound/
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 
 from src.live_demo.models_live import (
     DEVICE,
+    OUTPUT_EVENTS_DIR,
+    OUTPUT_SPEECH_DIR,
+    WHISPER_CACHE,
     load_models_and_labels,
 )
 from src.live_demo.feature_extraction import AudioFeatureExtractor
 from src.live_demo.audio_utils import record_audio
 
+SAMPLE_RATE            = 16000
+DEFAULT_RECORD_SECONDS = 10.0
+TOP_K_EVENTS           = 15
 
-SAMPLE_RATE = 16000
-DEFAULT_RECORD_SECONDS = 3.0
-TOP_K_EVENTS = 5
+
+# ── Config loading ────────────────────────────────────────────────────────────
+
+def _load_threshold(config_path: Path, key: str = "best_threshold", default: float = 0.5) -> float:
+    if config_path.exists():
+        with config_path.open() as f:
+            return float(json.load(f).get(key, default))
+    return default
+
+EVENTS_THRESHOLD = _load_threshold(OUTPUT_EVENTS_DIR / "events_training_config.json")
 
 
-# -----------------------
-# Cached resources
-# -----------------------
+# ── Cached model + pipeline loading ──────────────────────────────────────────
+
 @st.cache_resource
-def get_models_labels_and_extractor():
-    env_model, event_model, env_id2label, event_id2label = load_models_and_labels()
+def get_models_and_extractor():
+    env_model, event_model, speech_model, env_id2label, event_id2label, speech_id2label = (
+        load_models_and_labels()
+    )
     extractor = AudioFeatureExtractor(sample_rate=SAMPLE_RATE)
-    return env_model, event_model, env_id2label, event_id2label, extractor
+    return (env_model, event_model, speech_model,
+            env_id2label, event_id2label, speech_id2label, extractor)
 
 
-# -----------------------
-# Inference
-# -----------------------
-def run_models_on_audio(
-    env_model,
-    event_model,
-    extractor: AudioFeatureExtractor,
-    audio: np.ndarray,
-    env_id2label,
-    event_id2label,
-    device: str = DEVICE,
-) -> Tuple[Tuple[str, float], List[Tuple[str, float]]]:
+@st.cache_resource
+def get_whisper():
+    """Lazy-load Whisper large-v3. Returns model or None if unavailable."""
+    try:
+        from faster_whisper import WhisperModel
+        compute_type = "float16" if DEVICE == "cuda" else "int8"
+        print(f"[INFO] Loading Whisper large-v3 ({compute_type})...")
+        model = WhisperModel(
+            "large-v3",
+            device=DEVICE,
+            compute_type=compute_type,
+            download_root=str(WHISPER_CACHE),
+        )
+        return model
+    except Exception as e:
+        st.warning(f"Whisper unavailable: {e}")
+        return None
 
-    # Separate env/events feature flows
-    env_logmel = extractor.env_features(audio, sr=SAMPLE_RATE)   # (F, T)
-    event_logmel = extractor.event_features(audio, sr=SAMPLE_RATE)  # (F, T)
 
-    env_x = torch.from_numpy(env_logmel).unsqueeze(0).unsqueeze(0).to(device)
-    event_x = torch.from_numpy(event_logmel).unsqueeze(0).unsqueeze(0).to(device)
+# ── Inference ─────────────────────────────────────────────────────────────────
+
+def run_inference(
+    env_model, event_model, speech_model, extractor,
+    audio, env_id2label, event_id2label, speech_id2label,
+):
+    # Environment embeddings (128, 10)
+    env_emb = extractor.env_features(audio, sr=SAMPLE_RATE)
+    env_x   = torch.from_numpy(env_emb).unsqueeze(0).to(DEVICE)
+
+    # Events log-mel (1, 128, T)
+    event_spec = extractor.event_features(audio, sr=SAMPLE_RATE)
+    event_x    = torch.from_numpy(event_spec).unsqueeze(0).unsqueeze(0).to(DEVICE)
+
+    # Speech log-mel (1, 128, T) — same as events but raw dB
+    speech_logmel = extractor.env_logmel(audio, sr=SAMPLE_RATE)
+    T = speech_logmel.shape[1]
+    TARGET_FRAMES = 313
+    if T < TARGET_FRAMES:
+        speech_logmel = np.pad(speech_logmel, ((0, 0), (0, TARGET_FRAMES - T)))
+    else:
+        speech_logmel = speech_logmel[:, :TARGET_FRAMES]
+    speech_x = torch.from_numpy(speech_logmel).unsqueeze(0).unsqueeze(0).to(DEVICE)
+
+    # Display logmel
+    display_logmel = extractor.env_logmel(audio, sr=SAMPLE_RATE)
 
     with torch.no_grad():
-        env_logits = env_model(env_x)         # (1, C_env)
-        event_logits = event_model(event_x)   # (1, C_event)
+        env_probs    = torch.softmax(env_model(env_x), dim=1).cpu().numpy()[0]
+        event_probs  = torch.sigmoid(event_model(event_x)).cpu().numpy()[0]
+        speech_probs = torch.softmax(speech_model(speech_x), dim=1).cpu().numpy()[0]
 
-        env_probs = torch.softmax(env_logits, dim=1).cpu().numpy()[0]
-        event_probs = torch.sigmoid(event_logits).cpu().numpy()[0]
+    # Environment
+    env_id    = int(env_probs.argmax())
+    env_label = env_id2label.get(env_id, f"class_{env_id}")
+    env_conf  = float(env_probs[env_id])
 
-    # Environment: single top prediction
-    env_class_id = int(env_probs.argmax())
-    env_conf = float(env_probs[env_class_id])
-    env_label = env_id2label.get(env_class_id, f"class_{env_class_id}")
+    # Events top-K
+    top_idx      = np.argsort(event_probs)[::-1][:TOP_K_EVENTS]
+    event_results = [(event_id2label.get(int(i), f"event_{i}"), float(event_probs[i]))
+                     for i in top_idx]
 
-    # Events: top-k multi-label predictions
-    top_indices = np.argsort(event_probs)[::-1][:TOP_K_EVENTS]
-    event_results = []
-    for idx in top_indices:
-        conf = float(event_probs[idx])
-        label = event_id2label.get(int(idx), f"event_{idx}")
-        event_results.append((label, conf))
-
-    return (env_label, env_conf), event_results, env_logmel
-
-
-# -----------------------
-# Plotting helpers
-# -----------------------
-def plot_waveform(audio: np.ndarray, sr: int = SAMPLE_RATE):
-    fig, ax = plt.subplots(figsize=(8, 2))
-    t = np.linspace(0, len(audio) / sr, num=len(audio))
-    ax.plot(t, audio)
-    ax.set_xlabel("Time (s)")
-    ax.set_ylabel("Amplitude")
-    ax.set_title("Waveform")
-    fig.tight_layout()
-    return fig
-
-
-def plot_spectrogram(logmel: np.ndarray, sr: int = SAMPLE_RATE):
-    fig, ax = plt.subplots(figsize=(8, 3))
-    img = librosa.display.specshow(
-        logmel,
-        x_axis="time",
-        y_axis="mel",
-        sr=sr,
-        ax=ax,
-    )
-    ax.set_title("Log-Mel Spectrogram (Environment features)")
-    fig.colorbar(img, ax=ax, format="%+2.0f")
-    fig.tight_layout()
-    return fig
-
-
-def plot_event_bars(events: List[Tuple[str, float]]):
-    labels = [e[0] for e in events]
-    confs = [e[1] for e in events]
-
-    fig, ax = plt.subplots(figsize=(6, 3))
-    y_pos = np.arange(len(labels))
-    ax.barh(y_pos, confs)
-    ax.set_yticks(y_pos)
-    ax.set_yticklabels(labels)
-    ax.invert_yaxis()
-    ax.set_xlim(0, 1.0)
-    ax.set_xlabel("Confidence")
-    ax.set_title("Top Event Predictions")
-    fig.tight_layout()
-    return fig
-
-
-# -----------------------
-# Scene summarization
-# -----------------------
-def rule_based_summary(env_label: str, env_conf: float,
-                       events: List[Tuple[str, float]]) -> str:
-    """
-    Simple confidence-aware summary with no fancy label cleanup.
-    Uses only higher-confidence events.
-    """
-    strong = [(l, c) for (l, c) in events if c >= 0.4]
-
-    env_name = env_label.replace("_", " ")
-
-    if not strong:
-        return (
-            f"It sounds like you are in a {env_name} environment, "
-            f"but no specific sound events stand out clearly."
-        )
-
-    strong_sorted = sorted(strong, key=lambda x: x[1], reverse=True)[:3]
-    event_names = [l.replace("_", " ") for (l, _) in strong_sorted]
-
-    if len(event_names) == 1:
-        events_text = event_names[0]
-    elif len(event_names) == 2:
-        events_text = " and ".join(event_names)
-    else:
-        events_text = ", ".join(event_names[:-1]) + f", and {event_names[-1]}"
+    # Speech
+    speech_id    = int(speech_probs.argmax())
+    speech_label = speech_id2label.get(speech_id, "unknown")
+    speech_conf  = float(speech_probs[speech_id])
+    speech_prob_map = {speech_id2label.get(i, str(i)): float(p)
+                       for i, p in enumerate(speech_probs)}
 
     return (
-        f"It sounds like you are in a {env_name} environment with "
-        f"{events_text} in the background."
+        (env_label, env_conf, env_probs),
+        event_results,
+        (speech_label, speech_conf, speech_prob_map),
+        display_logmel,
     )
 
 
-def llm_summary(env_label: str, env_conf: float,
-                events: List[Tuple[str, float]]) -> str:
+def run_transcription(audio: np.ndarray, speech_label: str, whisper_model) -> Tuple[str, float, bool]:
     """
-    Uses a real LLM if OPENAI_API_KEY is set; otherwise falls back
-    to the rule-based summary.
-
-    Sends raw labels + confidences and explicitly tells the LLM to
-    infer a plausible real-world scene based on higher-confidence
-    events.
+    Transcribe audio if speech detected. Returns (transcript, elapsed_s, whisper_used).
     """
-    import os
+    if speech_label == "no_speech" or whisper_model is None:
+        return "", 0.0, False
 
-    api_key = os.getenv("OPENAI_API_KEY")
+    import tempfile, soundfile as sf
+
+    t0 = time.perf_counter()
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            tmp_path = tmp.name
+        sf.write(tmp_path, audio, SAMPLE_RATE)
+
+        segments_gen, _ = whisper_model.transcribe(
+            tmp_path, language="en", beam_size=5, vad_filter=True,
+            vad_parameters={"min_silence_duration_ms": 500},
+        )
+        transcript = " ".join(seg.text.strip() for seg in segments_gen)
+        Path(tmp_path).unlink(missing_ok=True)
+        return transcript.strip(), round(time.perf_counter() - t0, 2), True
+    except Exception as e:
+        return f"[Transcription error: {e}]", 0.0, False
+
+
+# ── Plot helpers ──────────────────────────────────────────────────────────────
+
+def plot_waveform(audio, sr=SAMPLE_RATE):
+    fig, ax = plt.subplots(figsize=(8, 2))
+    ax.plot(np.linspace(0, len(audio)/sr, len(audio)), audio, linewidth=0.5)
+    ax.set_xlabel("Time (s)"); ax.set_ylabel("Amplitude"); ax.set_title("Waveform")
+    fig.tight_layout(); return fig
+
+
+def plot_spectrogram(logmel, sr=SAMPLE_RATE):
+    fig, ax = plt.subplots(figsize=(8, 3))
+    img = librosa.display.specshow(logmel, x_axis="time", y_axis="mel", sr=sr, ax=ax)
+    ax.set_title("Log-Mel Spectrogram")
+    fig.colorbar(img, ax=ax, format="%+2.0f dB"); fig.tight_layout(); return fig
+
+
+def plot_env_bars(env_probs, id2label):
+    labels = [id2label.get(i, str(i)) for i in range(len(env_probs))]
+    fig, ax = plt.subplots(figsize=(6, 3))
+    bars = ax.barh(np.arange(len(labels)), env_probs, color="lightgray")
+    bars[int(env_probs.argmax())].set_color("steelblue")
+    ax.set_yticks(np.arange(len(labels))); ax.set_yticklabels(labels)
+    ax.invert_yaxis(); ax.set_xlim(0, 1); ax.set_xlabel("Probability")
+    ax.set_title("Environment Probabilities"); fig.tight_layout(); return fig
+
+
+def plot_event_bars(events):
+    labels = [e[0] for e in events]; confs = [e[1] for e in events]
+    fig, ax = plt.subplots(figsize=(6, max(3, len(labels) * 0.35)))
+    ax.barh(np.arange(len(labels)), confs,
+            color=["steelblue" if c >= EVENTS_THRESHOLD else "lightgray" for c in confs])
+    ax.set_yticks(np.arange(len(labels))); ax.set_yticklabels(labels)
+    ax.invert_yaxis()
+    ax.axvline(EVENTS_THRESHOLD, color="red", linestyle="--", linewidth=1,
+               label=f"threshold={EVENTS_THRESHOLD:.2f}")
+    ax.legend(fontsize=8); ax.set_xlim(0, 1); ax.set_xlabel("Confidence")
+    ax.set_title(f"Top {TOP_K_EVENTS} Events"); fig.tight_layout(); return fig
+
+
+def plot_speech_bars(prob_map: dict):
+    labels = list(prob_map.keys()); confs = list(prob_map.values())
+    colors = {"no_speech": "#d9534f", "single_speaker": "#5bc0de", "conversation": "#5cb85c"}
+    fig, ax = plt.subplots(figsize=(5, 2))
+    ax.barh(np.arange(len(labels)), confs,
+            color=[colors.get(l, "lightgray") for l in labels])
+    ax.set_yticks(np.arange(len(labels))); ax.set_yticklabels(labels)
+    ax.invert_yaxis(); ax.set_xlim(0, 1); ax.set_xlabel("Probability")
+    ax.set_title("Speech Detection"); fig.tight_layout(); return fig
+
+
+# ── Scene summary ─────────────────────────────────────────────────────────────
+
+def rule_based_summary(env_label, env_conf, events, speech_label, transcript=""):
+    strong = sorted([(l, c) for l, c in events if c >= EVENTS_THRESHOLD],
+                    key=lambda x: x[1], reverse=True)[:3]
+    env_name = env_label.replace("_", " ")
+    speech_note = {
+        "conversation":    "with an active conversation taking place",
+        "single_speaker":  "with a single person speaking",
+        "no_speech":       "with no speech detected",
+    }.get(speech_label, "")
+
+    if not strong:
+        return (f"The recording suggests a {env_name} environment "
+                f"(confidence: {env_conf:.0%}) {speech_note}.")
+
+    event_names = [l.replace("_", " ") for l, _ in strong]
+    events_text = (event_names[0] if len(event_names) == 1
+                   else " and ".join(event_names) if len(event_names) == 2
+                   else ", ".join(event_names[:-1]) + f", and {event_names[-1]}")
+
+    summary = (f"The recording suggests a {env_name} environment "
+               f"(confidence: {env_conf:.0%}) with {events_text} audible{', ' + speech_note if speech_note else ''}.")
+
+    if transcript:
+        summary += f'\n\n**Transcript:** "{transcript}"'
+    return summary
+
+
+def llm_summary(env_label, env_conf, events, speech_label, transcript=""):
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
-        return rule_based_summary(env_label, env_conf, events)
-
-    from openai import OpenAI
-
-    client = OpenAI(api_key=api_key)
-
-    events_for_llm = [
-        {
-            "label": label,
-            "confidence": round(float(conf), 3),
-        }
-        for label, conf in events
-    ]
-
-    env_payload = {
-        "label": env_label,
-        "confidence": round(float(env_conf), 3),
-    }
-
-    system_msg = (
-        "You are an acoustic scene summarizer. "
-        "You receive the output of an environment classifier and a multi-label "
-        "event classifier, with confidences between 0 and 1. "
-        "Your job is to infer what real-world scene the listener is in and "
-        "describe it in one clear, natural sentence."
-    )
-
-    user_payload = {
-        "environment": env_payload,
-        "events": events_for_llm,
-        "instructions": [
-            "Focus mainly on events with confidence >= 0.4.",
-            "Use your world knowledge to guess a plausible scene "
-            "(for example: 'a rainforest during a heavy rainstorm', "
-            "'a busy city street at night').",
-            "Do not mention confidence numbers.",
-            "Write exactly one sentence.",
-        ],
-    }
+        return rule_based_summary(env_label, env_conf, events, speech_label, transcript), False
 
     try:
+        from openai import OpenAI
+        client = OpenAI(api_key=api_key)
+
+        payload = {
+            "environment":      {"label": env_label, "confidence": round(float(env_conf), 3)},
+            "detected_events":  [{"label": l, "confidence": round(float(c), 3)}
+                                  for l, c in events if c >= EVENTS_THRESHOLD],
+            "speech_detection": {"label": speech_label},
+            "transcript":       transcript or None,
+        }
+
+        system_msg = (
+            "You are an expert acoustic scene analyst. "
+            "Given classifier outputs from an audio scene understanding system "
+            "(environment class, detected sound events, speech detection, and optional transcript), "
+            "describe what is likely happening in 2-3 natural sentences. "
+            "If a transcript is provided, incorporate it naturally. "
+            "Be specific and vivid. Do not mention confidence scores."
+        )
+
         resp = client.chat.completions.create(
             model="gpt-4.1-mini",
             messages=[
                 {"role": "system", "content": system_msg},
-                {
-                    "role": "user",
-                    "content": (
-                        "Here is the model output as JSON. "
-                        "Respond with one natural-language sentence summarizing "
-                        "the likely scene.\n\n"
-                        + json.dumps(user_payload, indent=2)
-                    ),
-                },
+                {"role": "user",   "content": json.dumps(payload, indent=2)},
             ],
-            max_tokens=80,
+            max_tokens=150, temperature=0.7,
         )
         text = resp.choices[0].message.content.strip()
-        if not text:
-            return rule_based_summary(env_label, env_conf, events)
-        return text
-    except Exception:
-        return rule_based_summary(env_label, env_conf, events)
+        if transcript:
+            text += f'\n\n**Transcript:** "{transcript}"'
+        return text or rule_based_summary(env_label, env_conf, events, speech_label, transcript), True
+
+    except Exception as e:
+        return (rule_based_summary(env_label, env_conf, events, speech_label, transcript)
+                + f"\n\n*(LLM error: {e})*"), False
 
 
+# ── Conversation log (session state) ─────────────────────────────────────────
 
-# -----------------------
-# Streamlit UI
-# -----------------------
+def init_conversation_log():
+    if "conversation_log" not in st.session_state:
+        st.session_state.conversation_log = []
+
+def add_to_log(speech_label, transcript, timestamp):
+    if transcript and speech_label != "no_speech":
+        st.session_state.conversation_log.append({
+            "time": time.strftime("%H:%M:%S", time.localtime(timestamp)),
+            "label": speech_label,
+            "text": transcript,
+        })
+
+def save_conversation_log():
+    if not st.session_state.conversation_log:
+        return None
+    out = {
+        "full_transcript": " ".join(e["text"] for e in st.session_state.conversation_log),
+        "entries": st.session_state.conversation_log,
+    }
+    return json.dumps(out, indent=2).encode("utf-8")
+
+
+# ── Main UI ───────────────────────────────────────────────────────────────────
+
 def main():
-    st.set_page_config(page_title="Surround Sound Live Demo", layout="wide")
-    st.title("Surround Sound – Live Demo")
+    st.set_page_config(page_title="Surround Sound V2", layout="wide")
+    st.title("Surround Sound V2 – Live Demo")
+    st.markdown("Record from your microphone to classify the acoustic environment, "
+                "detect sound events, and transcribe speech.")
 
-    st.markdown(
-        "Record a short clip with your microphone and classify the "
-        "environment and sound events. Features are computed with the "
-        "same log-mel pipeline used for training."
-    )
+    init_conversation_log()
 
-    env_model, event_model, env_id2label, event_id2label, extractor = (
-        get_models_labels_and_extractor()
-    )
+    (env_model, event_model, speech_model,
+     env_id2label, event_id2label, speech_id2label, extractor) = get_models_and_extractor()
 
-    col_left, col_right = st.columns([1, 1])
-
+    # ── Sidebar ───────────────────────────────────────────────────────────────
     with st.sidebar:
         st.header("Settings")
-        rec_sec = st.slider(
-            "Recording length (seconds)",
-            min_value=1.0,
-            max_value=15.0,
-            value=DEFAULT_RECORD_SECONDS,
-            step=0.5,
-        )
-        st.write(f"Sample rate: {SAMPLE_RATE} Hz")
-        st.write("Channels: mono")
-        st.caption("Start with ~3 seconds for stable predictions.")
+        rec_sec  = st.slider("Recording length (s)", 3.0, 15.0, DEFAULT_RECORD_SECONDS, 0.5)
+        use_llm  = st.toggle("LLM scene summary", value=True)
+        use_whisper = st.toggle("Transcribe speech (Whisper)", value=True)
 
-    if st.button("🎙️ Record from microphone"):
+        st.caption(f"Events threshold: {EVENTS_THRESHOLD:.2f}")
+        st.caption(f"Device: {DEVICE}")
+
+        if use_llm and not os.getenv("OPENAI_API_KEY", "").strip():
+            st.warning("OPENAI_API_KEY not set — rule-based summary will be used.")
+
+
+
+    # ── Record button ─────────────────────────────────────────────────────────
+    if st.button("Record", type="primary"):
         audio = record_audio(rec_sec, fs=SAMPLE_RATE)
+        recorded_at = time.time()
 
-        # Run inference
-        (env_label, env_conf), event_results, env_logmel = run_models_on_audio(
-            env_model,
-            event_model,
-            extractor,
-            audio,
-            env_id2label,
-            event_id2label,
-            device=DEVICE,
-        )
+        with st.spinner("Running inference..."):
+            (env_label, env_conf, env_probs), event_results, \
+            (speech_label, speech_conf, speech_prob_map), display_logmel = run_inference(
+                env_model, event_model, speech_model, extractor,
+                audio, env_id2label, event_id2label, speech_id2label,
+            )
 
-        # Left column: visuals
-        with col_left:
+        # Transcription
+        transcript = ""
+        whisper_elapsed = 0.0
+        whisper_used_flag = False
+        if use_whisper:
+            whisper_model = get_whisper()
+            with st.spinner("Transcribing..."):
+                transcript, whisper_elapsed, whisper_used_flag = run_transcription(
+                    audio, speech_label, whisper_model
+                )
+            add_to_log(speech_label, transcript, recorded_at)
+
+        # ── Row 1: Waveform | Spectrogram ─────────────────────────────────────
+        st.markdown("---")
+        col_wave, col_spec = st.columns([1, 1])
+        with col_wave:
             st.subheader("Waveform")
-            st.pyplot(plot_waveform(audio, sr=SAMPLE_RATE))
+            st.pyplot(plot_waveform(audio))
+        with col_spec:
+            st.subheader("Log-Mel Spectrogram")
+            st.pyplot(plot_spectrogram(display_logmel))
 
-            st.subheader("Spectrogram (env log-mel)")
-            st.pyplot(plot_spectrogram(env_logmel, sr=SAMPLE_RATE))
+        # ── Row 2: Environment | Speech Detection ─────────────────────────────
+        st.markdown("---")
+        col_env, col_speech = st.columns([1, 1])
+        with col_env:
+            st.subheader("Environment")
+            st.metric(label=env_label.replace("_", " ").title(), value=f"{env_conf:.1%}")
+            st.pyplot(plot_env_bars(env_probs, env_id2label))
 
-        # Right column: predictions & summary
-        with col_right:
-            st.subheader("Environment Prediction")
-            st.write(f"**{env_label}** ({env_conf:.2f} confidence)")
-            st.progress(env_conf)
+        with col_speech:
+            st.subheader("Speech Detection")
+            speech_emoji = ""
+            st.metric(label=speech_label.replace("_", " ").title(),
+                      value=f"{speech_conf:.1%}")
+            st.pyplot(plot_speech_bars(speech_prob_map))
 
-            st.subheader(f"Top {TOP_K_EVENTS} Event Predictions")
+        # ── Row 3: Events | Transcript + Summary ──────────────────────────────
+        st.markdown("---")
+        col_events, col_summary = st.columns([1, 1])
+        with col_events:
+            st.subheader(f"Top {TOP_K_EVENTS} Sound Events")
             st.pyplot(plot_event_bars(event_results))
+            detected = [(l, c) for l, c in event_results if c >= EVENTS_THRESHOLD]
+            if detected:
+                st.write("**Detected above threshold:**")
+                # Show as a clean table
+                import pandas as pd
+                det_df = pd.DataFrame(detected, columns=["Event", "Confidence"])
+                det_df["Confidence"] = det_df["Confidence"].map("{:.2f}".format)
+                st.dataframe(det_df, use_container_width=True, hide_index=True)
+            else:
+                st.info(f"No events above threshold ({EVENTS_THRESHOLD:.2f})")
 
-            st.subheader("Scene Summary (LLM-backed)")
-            summary_text = llm_summary(env_label, env_conf, event_results)
-            st.write(summary_text)
+        with col_summary:
+            if use_whisper:
+                st.subheader("Transcript")
+                if transcript:
+                    st.text_area("", transcript, height=120, label_visibility="collapsed")
+                    st.caption(f"Whisper large-v3 · {whisper_elapsed:.1f}s")
+                elif speech_label == "no_speech":
+                    st.info("No speech detected — transcription skipped.")
+                else:
+                    st.info("No speech found in audio.")
+
+            st.subheader("Scene Summary")
+            if use_llm:
+                summary, used_llm_flag = llm_summary(
+                    env_label, env_conf, event_results, speech_label, transcript)
+                st.write(summary)
+                st.caption("LLM-generated" if used_llm_flag else "Rule-based")
+            else:
+                st.write(rule_based_summary(
+                    env_label, env_conf, event_results, speech_label, transcript))
+
+        # ── Conversation log ──────────────────────────────────────────────────
+        if st.session_state.conversation_log:
+            st.markdown("---")
+            with st.expander(f"Conversation Log ({len(st.session_state.conversation_log)} entries)", expanded=False):
+                col_log, col_actions = st.columns([3, 1])
+                with col_log:
+                    for entry in st.session_state.conversation_log[-15:]:
+                        st.markdown(f"**[{entry['time']} · {entry['label']}]** {entry['text']}")
+                with col_actions:
+                    log_bytes = save_conversation_log()
+                    if log_bytes:
+                        st.download_button("Save", log_bytes,
+                                           file_name="conversation.json",
+                                           mime="application/json")
+                    if st.button("Clear"):
+                        st.session_state.conversation_log = []
+                        st.rerun()
 
     st.markdown("---")
-    st.caption(
-        "v1 demo"
-    )
+    st.caption("Surround Sound V2 · CSS 586 Deep Learning · CSS 590 Human-Computer Interaction · University of Washington Bothell")
 
 
 if __name__ == "__main__":

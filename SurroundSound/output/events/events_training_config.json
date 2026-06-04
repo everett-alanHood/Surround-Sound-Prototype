@@ -1,10 +1,15 @@
 {
   "num_epochs": 40,
-  "batch_size": 64,
-  "learning_rate": 0.0002,
   "val_fraction": 0.15,
-  "fast_mode": false,
-  "fast_n": 15000,
-  "use_amp": true,
-  "num_workers": 4
+  "num_classes": 208,
+  "best_threshold": 0.9,
+  "best_micro_f1": 0.39205366579668255,
+  "best_hparams": {
+    "learning_rate": 0.0005,
+    "batch_size": 64.0,
+    "dropout": 0.4,
+    "focal_gamma": 1.0,
+    "se_reduction": 8.0,
+    "base_channels": 128.0
+  }
 }

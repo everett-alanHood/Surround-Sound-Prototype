@@ -1,0 +1,9 @@
+trial,best_macro_f1,checkpoint,learning_rate,batch_size,dropout,focal_gamma,se_reduction,base_channels
+3,0.7892232744268494,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\speech\trial_2_best.pt,0.0003,64,0.5,1.0,16,32
+1,0.7820515158828968,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\speech\trial_0_best.pt,0.0005,64,0.3,1.0,8,32
+8,0.7726708049167992,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\speech\trial_7_best.pt,0.0001,64,0.4,1.0,8,64
+5,0.6522913987154536,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\speech\trial_4_best.pt,0.0001,64,0.3,2.0,16,64
+7,0.6490397373889387,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\speech\trial_6_best.pt,0.0001,128,0.4,1.0,8,32
+6,0.63840735166922,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\speech\trial_5_best.pt,0.0003,128,0.3,2.0,8,64
+4,0.6196005385571266,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\speech\trial_3_best.pt,0.0001,128,0.5,1.0,8,32
+2,0.6042769829112344,C:\Users\tim3l\Documents\GitHub\Surround-Sound-Prototype\SurroundSound\output\speech\trial_1_best.pt,0.0005,64,0.4,2.0,8,32

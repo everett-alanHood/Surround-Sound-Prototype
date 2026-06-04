@@ -1,7 +1,9 @@
 {
-  "num_epochs": 20,
-  "batch_size": 64,
-  "learning_rate": 0.0003,
+  "num_epochs": 25,
   "val_fraction": 0.15,
-  "num_classes": 8
-}
+  "num_classes": 8,
+  "n_frames": 10,
+  "embed_dim": 128,
+  "best_hparams": {
+    "learning_rate": 0.0005,
+    "batch_size": 

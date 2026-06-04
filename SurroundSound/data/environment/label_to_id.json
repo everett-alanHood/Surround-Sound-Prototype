@@ -1,0 +1,10 @@
+{
+  "animal": 0,
+  "crowd": 1,
+  "indoor": 2,
+  "other_ambient": 3,
+  "outdoor_nature": 4,
+  "vehicle_ground": 5,
+  "vehicle_water": 6,
+  "water": 7
+}

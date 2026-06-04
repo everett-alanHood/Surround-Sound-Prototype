@@ -1,0 +1,19 @@
+{
+  "num_epochs": 25,
+  "val_fraction": 0.15,
+  "num_classes": 3,
+  "label_names": [
+    "no_speech",
+    "single_speaker",
+    "multi_speaker"
+  ],
+  "best_hparams": {
+    "learning_rate": 0.0003,
+    "batch_size": 64.0,
+    "dropout": 0.5,
+    "focal_gamma": 1.0,
+    "se_reduction": 16.0,
+    "base_channels": 32.0
+  },
+  "best_macro_f1": 0.7892232744268494
+}
